@@ -1,0 +1,395 @@
+import { memo, useEffect, useMemo, useRef } from 'react';
+import {
+  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Tooltip, useMap, useMapEvents,
+} from 'react-leaflet';
+import L from 'leaflet';
+import { SURIGAO_CENTER } from '../data/surigao.js';
+import { bfpStations } from '../data/bfpStations.js';
+import { destination } from '../lib/geo.js';
+import { projectSpread } from '../lib/fireSpread.js';
+import { HazeLayer } from './HazeUI.jsx';
+
+// Frame that takes in Indonesia's fire belt and the whole Philippines.
+const HAZE_BOUNDS = [[-9.5, 96], [21.5, 144]];
+const MOBILE_HAZE_BOUNDS = [[-8.5, 108], [20.5, 132]];
+
+/** Flame glyph, flickering. Drawn rather than imported so it can be tinted. */
+const flameSvg = `
+<svg viewBox="0 0 24 32" aria-hidden="true">
+  <path class="flame-outer" d="M12 0C12 6 5 8 5 16a7 7 0 0 0 14 0c0-4-2-6-3-9-1 3-4 3-4 0 0-3 0-5 0-7z"/>
+  <path class="flame-inner" d="M12 12c0 3-3 4-3 7a3.2 3.2 0 0 0 6.4 0c0-3-2.2-4-3.4-7z"/>
+</svg>`;
+
+function incidentIcon(incident, isSelected) {
+  const held = incident.alarm.level === 0;
+  return L.divIcon({
+    className: 'pin-wrap',
+    html: `
+      <span class="fire-pin ${held ? 'is-light' : ''} ${isSelected ? 'is-selected' : ''}"
+            style="--alarm:${incident.alarm.color}">
+        <span class="fire-ring"></span>
+        <span class="fire-ring delay"></span>
+        <span class="fire-glow"></span>
+        <span class="fire-flame">${held ? '' : flameSvg}</span>
+        ${held ? '<span class="fire-smoke-dot"></span>' : ''}
+        <span class="fire-code">${incident.alarm.code}</span>
+      </span>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+/** Embers and smoke streaming downwind, rotated to the spread heading. */
+function plumeIcon(bearing, intensity) {
+  const embers = Array.from({ length: 7 })
+    .map((_, i) => `<span class="ember" style="--i:${i}"></span>`)
+    .join('');
+  const smoke = Array.from({ length: 4 })
+    .map((_, i) => `<span class="smoke" style="--i:${i}"></span>`)
+    .join('');
+  return L.divIcon({
+    className: 'pin-wrap plume-wrap',
+    html: `<span class="plume" style="--head:${bearing}deg; --intensity:${intensity}">${smoke}${embers}</span>`,
+    iconSize: [1, 1],
+    iconAnchor: [0, 0],
+  });
+}
+
+function stationIcon(station) {
+  return L.divIcon({
+    className: 'pin-wrap',
+    html: `
+      <span class="bfp-badge is-${station.kind}">
+        <svg viewBox="0 0 32 32" aria-hidden="true">
+          <path class="badge-cross" d="M16 2l3.4 6.1L26 5.3l-2.7 6.6 6.1 3.4-6.1 3.4L26 25.3l-6.6-2.8L16 30l-3.4-7.5L6 25.3l2.7-6.6L2.6 15.3l6.1-3.4L6 5.3l6.6 2.8z"/>
+          <circle class="badge-core" cx="16" cy="16" r="6.4"/>
+        </svg>
+        <span class="bfp-text">BFP</span>
+      </span>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+  });
+}
+
+// bfpStations never changes at runtime, so its icons are built once here
+// instead of on every MapView render (which, with the haze layer playing,
+// used to happen roughly twice a second and was the actual source of lag —
+// every station badge was torn down and rebuilt each tick even though
+// nothing about the stations had changed).
+const STATION_MARKERS = bfpStations.map((station) => ({ station, icon: stationIcon(station) }));
+
+function FlyTo({ location, railOpen }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!location) return undefined;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    const targetY = mobile && railOpen ? map.getSize().y * 0.28 : null;
+    const moveSelectedFire = () => {
+      if (targetY == null) return;
+      const zoom = map.getZoom();
+      const size = map.getSize();
+      const projected = map.project(location, zoom);
+      const desiredCenter = projected.add([0, size.y / 2 - targetY]);
+      map.setView(map.unproject(desiredCenter, zoom), zoom, { animate: true, duration: 0.28 });
+    };
+    map.once('moveend', moveSelectedFire);
+    map.flyTo(location, Math.max(map.getZoom(), mobile ? 13 : 16), { duration: 0.8 });
+    return () => map.off('moveend', moveSelectedFire);
+  }, [location, map, railOpen]);
+  return null;
+}
+
+function ClickToPlace({ active, onPick }) {
+  useMapEvents({
+    click(event) {
+      if (active) onPick([event.latlng.lat, event.latlng.lng]);
+    },
+  });
+  return null;
+}
+
+function UserLocationMarker({ location, accuracy }) {
+  if (!location) return null;
+  return (
+    <>
+      {accuracy != null && (
+        <Circle
+          center={location}
+          radius={accuracy}
+          pathOptions={{ color: '#1677D2', weight: 1, fillColor: '#1677D2', fillOpacity: 0.08 }}
+        />
+      )}
+      <CircleMarker
+        center={location}
+        radius={8}
+        pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
+      />
+      <CircleMarker
+        center={location}
+        radius={13}
+        pathOptions={{ color: '#1677D2', weight: 3, fill: false, className: 'user-location-pulse' }}
+      />
+    </>
+  );
+}
+
+/**
+ * The haze view is regional (Indonesia to the Philippines), the fire view is
+ * street level. Without this the map stays zoomed on Surigao when you switch
+ * tabs and every hotspot is hundreds of kilometres off screen.
+ */
+function HazeViewport({ active }) {
+  const map = useMap();
+  const previous = useRef(active);
+  useEffect(() => {
+    if (previous.current === active) return; // first paint, or a StrictMode re-run
+    previous.current = active;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    if (active) {
+      map.flyToBounds(mobile ? MOBILE_HAZE_BOUNDS : HAZE_BOUNDS, {
+        padding: mobile ? [28, 28] : [24, 24],
+        paddingBottomRight: mobile ? [0, Math.round(window.innerHeight * 0.5)] : undefined,
+        duration: 0.9,
+      });
+    } else {
+      map.flyTo(SURIGAO_CENTER, mobile ? 13 : 14, { duration: 0.9 });
+    }
+  }, [active, map]);
+  return null;
+}
+
+function MobilePanelOffset({ railOpen }) {
+  const map = useMap();
+  const offsetRef = useRef(false);
+
+  useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    if (!mobile || offsetRef.current === railOpen) return;
+    offsetRef.current = railOpen;
+    map.panBy([0, railOpen ? Math.round(window.innerHeight * 0.12) : -Math.round(window.innerHeight * 0.12)], {
+      animate: true,
+      duration: 0.28,
+    });
+  }, [map, railOpen]);
+
+  return null;
+}
+
+/**
+ * The side panel collapsing/expanding resizes .stage via a CSS grid-column
+ * transition, not a DOM resize event, so Leaflet never hears about it and
+ * keeps painting tiles at the old, narrower size — leaving a blank strip
+ * where the panel used to be. Nudge it once the layout settles.
+ */
+function ResizeOnPanelToggle({ trigger }) {
+  const map = useMap();
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => map.invalidateSize({ animate: true }));
+    // 280ms is the .app grid-column transition duration in styles.css;
+    // this second call catches the final size once it's done animating.
+    const afterTransition = setTimeout(() => map.invalidateSize({ animate: true }), 320);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(afterTransition);
+    };
+  }, [trigger, map]);
+  return null;
+}
+
+/**
+ * Everything about local fires (stations, pins, spread cone, report dots).
+ * None of it depends on the haze frame or wind-advection playback, so it's
+ * split out and memoized — otherwise every tick of the haze timeline
+ * (roughly twice a second while playing) re-ran this whole tree, rebuilding
+ * every marker icon from scratch even though nothing here had changed.
+ * That icon churn, not the smoke cross-fade, was what read as "laggy".
+ */
+const LocalLayer = memo(function LocalLayer({
+  incidents, selectedId, onSelect, showStations, selected, active, live, horizonMinutes, pendingLocation,
+}) {
+  return (
+    <>
+      {showStations &&
+        STATION_MARKERS.map(({ station, icon }) => (
+          <Marker key={station.id} position={station.location} icon={icon}>
+            <Tooltip direction="top" offset={[0, -14]}>
+              <strong>{station.name}</strong>
+              <br />
+              {station.city} · {station.region}
+              {station.contact && (
+                <>
+                  <br />
+                  {station.contact}
+                </>
+              )}
+            </Tooltip>
+          </Marker>
+        ))}
+
+      {active && (
+        <>
+          {/* ghost outlines at the fixed horizons, for reference */}
+          {selected.projections.map((p) => (
+            <Polygon
+              key={p.minutes}
+              positions={p.polygon}
+              pathOptions={{
+                color: selected.alarm.color,
+                fill: false,
+                weight: 1,
+                opacity: 0.35,
+                dashArray: '2 7',
+                className: 'ghost-ring',
+              }}
+            />
+          ))}
+
+          <Polygon
+            positions={live.polygon}
+            pathOptions={{
+              color: selected.alarm.color,
+              fillColor: selected.alarm.color,
+              fillOpacity: 0.22,
+              weight: 2.5,
+              className: 'live-front',
+            }}
+          >
+            <Tooltip sticky>
+              {horizonMinutes} min · ~{live.estimatedStructures} structures ·{' '}
+              {live.headDistanceM.toFixed(0)} m downwind
+            </Tooltip>
+          </Polygon>
+
+          <Polyline
+            positions={[
+              selected.location,
+              destination(selected.location, live.headBearing, live.headDistanceM * 1.15),
+            ]}
+            pathOptions={{
+              color: selected.alarm.color,
+              weight: 2,
+              dashArray: '6 10',
+              className: 'wind-vector',
+            }}
+          />
+
+          <Marker
+            position={selected.location}
+            icon={plumeIcon(live.headBearing, Math.min(selected.alarm.level / 5, 1))}
+            interactive={false}
+          />
+        </>
+      )}
+
+      {selected &&
+        selected.reports.map((report) => (
+          <CircleMarker
+            key={report.id}
+            center={report.location}
+            radius={5}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 2,
+              fillColor: '#F4700A',
+              fillOpacity: 1,
+              className: 'report-dot',
+            }}
+          >
+            <Tooltip direction="top">{report.note}</Tooltip>
+          </CircleMarker>
+        ))}
+
+      {incidents.map((incident) => (
+        <Marker
+          key={incident.id}
+          position={incident.location}
+          icon={incidentIcon(incident, incident.id === selectedId)}
+          eventHandlers={{ click: () => onSelect(incident.id) }}
+          // Leaflet stacks icon markers by screen y-position, not
+          // importance, so a station badge, the wind plume, or even a
+          // lower-priority "light warning" pin can land in front of an
+          // active fire pin depending on where they fall on the map.
+          // Rank by what actually matters: active fires above held/light
+          // warnings above everything else, and the selected pin on top
+          // of same-tier pins too.
+          zIndexOffset={
+            (incident.alarm.level > 0 ? 3000 : 1000) +
+            (incident.id === selectedId ? 2000 : 0)
+          }
+        />
+      ))}
+
+      {pendingLocation && (
+        <CircleMarker
+          center={pendingLocation}
+          radius={9}
+          pathOptions={{ color: '#F4700A', weight: 3, fillColor: '#ffffff', fillOpacity: 1 }}
+        >
+          <Tooltip permanent direction="top">New report</Tooltip>
+        </CircleMarker>
+      )}
+    </>
+  );
+});
+
+export default function MapView({
+  incidents,
+  selectedId,
+  onSelect,
+  placing,
+  pendingLocation,
+  onPickLocation,
+  horizonMinutes,
+  showStations,
+  railOpen,
+  hazeMode = false,
+  haze = null,
+  hazeFrame = 0,
+  hazeFocus = null,
+  userLocation = null,
+  userLocationAccuracy = null,
+}) {
+  const selected = incidents.find((i) => i.id === selectedId);
+  const active = selected && selected.alarm.level > 0;
+
+  const live = useMemo(
+    () => (active ? projectSpread({ ...selected.spreadParams, minutes: horizonMinutes }) : null),
+    [active, selected, horizonMinutes]
+  );
+
+  return (
+    <MapContainer
+      center={SURIGAO_CENTER}
+      zoom={14}
+      className={`map ${placing ? 'is-placing' : ''}`}
+      zoomControl={false}
+    >
+      <TileLayer
+        className="tile-base"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxZoom={19}
+      />
+
+      <ResizeOnPanelToggle trigger={railOpen} />
+      <ClickToPlace active={placing} onPick={onPickLocation} />
+      {selected && <FlyTo location={selected.location} railOpen={railOpen} />}
+      <HazeViewport active={hazeMode} />
+      <MobilePanelOffset railOpen={railOpen} />
+      {hazeMode && <HazeLayer data={haze} frame={hazeFrame} focus={hazeFocus} />}
+
+      <LocalLayer
+        incidents={incidents}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        showStations={showStations}
+        selected={selected}
+        active={active}
+        live={live}
+        horizonMinutes={horizonMinutes}
+        pendingLocation={pendingLocation}
+      />
+      <UserLocationMarker location={userLocation} accuracy={userLocationAccuracy} />
+    </MapContainer>
+  );
+}
