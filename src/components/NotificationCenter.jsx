@@ -73,12 +73,22 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
     return () => timers.forEach(clearTimeout);
   }, [toasts]);
 
+  // pointerdown (not mousedown) so tapping the map on a phone closes the
+  // dropdown — Leaflet swallows the emulated mouse events on touch screens.
   useEffect(() => {
+    if (!open) return undefined;
     function onClickAway(e) {
-      if (open && rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
     }
-    document.addEventListener('mousedown', onClickAway);
-    return () => document.removeEventListener('mousedown', onClickAway);
+    function onKey(e) {
+      if (e.key === 'Escape') setOpen(false);
+    }
+    document.addEventListener('pointerdown', onClickAway);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onClickAway);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
 
   const activeCount = incidents.filter((i) => i.alarm.level > 0).length;
@@ -97,6 +107,61 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
 
   return (
     <div className="notify-root" ref={rootRef}>
+      {/* Buttons + dropdown live in one relatively-positioned row, so toasts
+          arriving below never push the buttons around and the dropdown always
+          opens directly under the bell. */}
+      <div className="notify-tools">
+        <button
+          className="admin-button"
+          onClick={onOpenAdmin}
+          type="button"
+          aria-label="Open admin panel"
+          title="Admin panel"
+        >
+          <AdminGlyph />
+        </button>
+        <button
+          className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label="Fire notifications"
+          title="Fire notifications"
+          type="button"
+        >
+          <BellGlyph ringing={activeCount > 0} />
+          {activeCount > 0 && <span className="bell-badge">{activeCount}</span>}
+        </button>
+
+        {open && (
+          <div className="bell-dropdown">
+            <div className="bell-dropdown-head">Where the fire is now</div>
+            {incidents.length === 0 && <p className="muted small">Nothing reported.</p>}
+            <ul>
+              {incidents.map((incident) => (
+                <li key={incident.id}>
+                  <button
+                    className="bell-row"
+                    style={{ '--alarm': incident.alarm.color }}
+                    onClick={() => {
+                      onSelect(incident.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="alarm-chip">{incident.alarm.code}</span>
+                    <span className="incident-meta">
+                      <strong>{incident.barangayName}</strong>
+                      <span className="muted small">
+                        {relative(incident.minutesElapsed)} · {incident.headDirection}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
       <div className="toast-stack" role="status" aria-live="polite">
         {toasts.map((t) => (
           <button
@@ -120,57 +185,6 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
           </button>
         ))}
       </div>
-
-      <div className="notify-tools">
-        <button
-          className="admin-button"
-          onClick={onOpenAdmin}
-          type="button"
-          aria-label="Open admin panel"
-          title="Admin panel"
-        >
-          <AdminGlyph />
-        </button>
-        <button
-          className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-label="Fire notifications"
-          type="button"
-        >
-          <BellGlyph ringing={activeCount > 0} />
-          {activeCount > 0 && <span className="bell-badge">{activeCount}</span>}
-        </button>
-      </div>
-
-      {open && (
-        <div className="bell-dropdown">
-          <div className="bell-dropdown-head">Where the fire is now</div>
-          {incidents.length === 0 && <p className="muted small">Nothing reported.</p>}
-          <ul>
-            {incidents.map((incident) => (
-              <li key={incident.id}>
-                <button
-                  className="bell-row"
-                  style={{ '--alarm': incident.alarm.color }}
-                  onClick={() => {
-                    onSelect(incident.id);
-                    setOpen(false);
-                  }}
-                >
-                  <span className="alarm-chip">{incident.alarm.code}</span>
-                  <span className="incident-meta">
-                    <strong>{incident.barangayName}</strong>
-                    <span className="muted small">
-                      {relative(incident.minutesElapsed)} · {incident.headDirection}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
       {soundPrompt && createPortal(
         <div className="sound-modal-backdrop" role="presentation">
@@ -203,12 +217,17 @@ function BellGlyph({ ringing }) {
   );
 }
 
+// A person in a tuxedo: head, black jacket, white shirt front, orange bow tie.
 function AdminGlyph() {
   return (
     <svg viewBox="0 0 24 24" className="admin-button-icon" aria-hidden="true">
-      <circle cx="12" cy="7.3" r="3.2" fill="currentColor" opacity="0.9" />
-      <path d="M5.5 18.1c1.1-2.5 3.2-3.8 6.5-3.8s5.4 1.3 6.5 3.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-      <path d="M8.5 10.4l3.5 2.4 3.5-2.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
+      <circle cx="12" cy="7" r="3.6" fill="currentColor" />
+      <path d="M3.2 23c0-5.4 3.4-9.2 8.8-9.2s8.8 3.8 8.8 9.2z" fill="currentColor" />
+      <path className="tux-shirt" d="M9 14.1 12 21.6 15 14.1C14.2 13.8 13.2 13.6 12 13.6S9.8 13.8 9 14.1z" />
+      <path className="tux-tie" d="M12 16.1 9.1 14.6v3.1zM12 16.1l2.9-1.5v3.1z" />
+      <rect className="tux-knot" x="11.1" y="15.2" width="1.8" height="1.8" rx=".5" />
+      <circle cx="12" cy="18.9" r=".55" fill="currentColor" />
+      <circle cx="12" cy="20.3" r=".55" fill="currentColor" />
     </svg>
   );
 }

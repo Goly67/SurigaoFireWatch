@@ -701,7 +701,7 @@ input[type='range'] { accent-color: var(--orange); }
 }
 
 .play {
-  flex: none; width: 38px; height: 38px; border-radius: 50%;
+  flex: none; width: 38px; height: 38px; min-height: 0; padding: 0; border-radius: 50%;
   border: none; background: var(--alarm, var(--orange));
   display: grid; place-items: center;
 }
@@ -741,43 +741,29 @@ input[type='range'] { accent-color: var(--orange); }
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
 }
 
+/* The buttons row. It is also the anchor for .bell-dropdown, so the dropdown
+   always opens right under the bell — even while toasts are stacked below. */
 .notify-tools {
+  position: relative;
   display: flex; align-items: center; gap: 10px;
 }
 
 .admin-button {
-  width: 42px; height: 42px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
-  background: var(--paper); color: var(--ink-soft); box-shadow: var(--shadow);
+  width: 44px; height: 44px; min-height: 0; padding: 0;
+  border: 1px solid var(--line); border-radius: 50%;
+  background: var(--paper); color: var(--ink); box-shadow: var(--shadow);
   display: grid; place-items: center; flex: none;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
-.admin-button:hover { border-color: var(--orange); background: var(--orange-wash); color: var(--orange-deep); }
-.admin-button-icon {
-  width: 20px; height: 20px; display: block;
-}
-
-@media (max-width: 900px) {
-  .notify-root {
-    top: 84px;
-    right: 12px;
-  }
-
-  .notify-tools {
-    gap: 6px;
-  }
-
-  .admin-button {
-    width: 38px; height: 38px;
-  }
-}
-
-/* Anchors the dropdown to the bell itself (position: absolute below), rather
-   than letting it fall into normal document flow underneath whatever else
-   is stacked in .notify-root — that gap was the bug. */
-.bell-anchor { position: relative; }
+.admin-button:hover { border-color: var(--orange); background: var(--orange-wash); transform: translateY(-1px); }
+.admin-button-icon { width: 28px; height: 28px; display: block; }
+.admin-button-icon .tux-shirt { fill: #fff; }
+.admin-button-icon .tux-tie { fill: var(--orange); }
+.admin-button-icon .tux-knot { fill: var(--orange-deep); }
 
 .bell {
-  position: relative; width: 44px; height: 44px; border-radius: 50%;
+  position: relative; width: 44px; height: 44px; min-height: 0; padding: 0; flex: none; border-radius: 50%;
   background: var(--paper); border: 1px solid var(--line);
   box-shadow: var(--shadow); display: grid; place-items: center;
   transition: border-color 140ms ease, background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
@@ -1056,28 +1042,29 @@ img.tile-base {
   .app.rail-collapsed .rail { height: 52vh; min-height: 0; overflow: hidden; border-top: none; transform: translateY(100%); }
   .timeline { bottom: 12px; padding: 10px 14px; gap: 10px; }
 
+  /* Hide/show handle. Open: a small tab straddling the top edge of the panel.
+     min-height: 0 is needed because the global mobile button rule below would
+     otherwise stretch it to 44px tall. */
   .rail-handle {
-    top: calc(100% - 52vh - 18px); left: 50%; bottom: auto;
-    width: 52px; height: 22px; border-radius: 8px;
+    top: calc(100% - 52vh - 13px); left: 50%; bottom: auto;
+    width: 56px; height: 26px; min-height: 0; padding: 0; border-radius: 8px;
     z-index: 1200;
     transform: translate(-50%, 0);
     transition: top 280ms cubic-bezier(.2,.7,.3,1);
   }
+  /* Collapsed: sit ABOVE the playback bar. App.jsx publishes the bar's real
+     height as --timeline-clearance (0px when there is no bar). */
   .app.rail-collapsed .rail-handle {
-    top: calc(100% - 66px - env(safe-area-inset-bottom));
+    top: calc(100% - var(--timeline-clearance, 0px) - 26px - 18px - env(safe-area-inset-bottom, 0px));
     left: 50%; transform: translate(-50%, 0);
   }
-  .app.is-haze-active.rail-collapsed .rail-handle {
-    top: calc(100% - 126px - env(safe-area-inset-bottom));
-  }
-  .rail-handle:active { transform: translate(-50%, -50%) scale(0.96); }
-  .app.rail-collapsed .rail-handle:active { transform: translate(-50%, 0) scale(0.96); }
+  .rail-handle:active { transform: translate(-50%, 0) scale(0.96); }
   .rail-handle-arrow { transform: rotate(45deg); }
   .app.rail-collapsed .rail-handle-arrow { transform: rotate(225deg); }
 
-  .notify-root { top: 82px; right: 12px; }
-  .notify-tools { gap: 6px; }
-  .admin-button { padding: 8px 10px; font-size: 0.66rem; }
+  /* Same row as the "Indonesia haze" toggle instead of floating over the map */
+  .notify-root { top: 8px; right: 12px; }
+  .notify-tools { gap: 8px; }
   .toast, .bell-dropdown { width: min(280px, 82vw); }
   .bell-dropdown { max-height: min(360px, 60vh); }
   .admin-panel { max-height: min(86vh, 640px); padding: 16px; }
@@ -1120,12 +1107,6 @@ img.tile-base {
   .sidebar .panel .primary.block {
     margin-top: 0;
   }
-  .notify-tools .admin-button {
-    order: 2;
-  }
-  .bell {
-    order: 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1135,4 +1116,3 @@ img.tile-base {
     transition-duration: 0.001ms !important;
   }
 }
-

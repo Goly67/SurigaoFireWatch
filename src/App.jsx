@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import MapView from './components/MapView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ReportForm from './components/ReportForm.jsx';
@@ -43,6 +43,8 @@ export default function App() {
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
+
+  const appRef = useRef(null);
 
   const haze = useHaze(hazeOn);
 
@@ -176,7 +178,31 @@ export default function App() {
   }
 
   const reporting = !hazeOn && view === 'report';
+  const showHazeTimeline = hazeOn && Boolean(haze.data?.frames);
+  const showSpreadTimeline = !hazeOn && Boolean(selected) && selected.alarm.level > 0 && !reporting;
+  const timelineVisible = showHazeTimeline || showSpreadTimeline;
   const userInCaraga = userLocation ? isPointInCaraga(userLocation) : false;
+
+  // Publish the playback bar's real height as --timeline-clearance so the
+  // mobile hide/show handle (styles.css) always sits above it, never on it.
+  useEffect(() => {
+    const app = appRef.current;
+    if (!app) return undefined;
+    const timeline = timelineVisible ? app.querySelector('.timeline') : null;
+    const apply = () => {
+      if (!timeline) {
+        app.style.setProperty('--timeline-clearance', '0px');
+        return;
+      }
+      const gap = parseFloat(getComputedStyle(timeline).bottom) || 0;
+      app.style.setProperty('--timeline-clearance', `${Math.ceil(timeline.offsetHeight + gap)}px`);
+    };
+    apply();
+    if (!timeline || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver(apply);
+    observer.observe(timeline);
+    return () => observer.disconnect();
+  }, [timelineVisible, hazeOn]);
 
   let rail;
   if (hazeOn) {
@@ -242,7 +268,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${railOpen ? '' : 'rail-collapsed'} ${hazeOn ? 'is-haze-active' : ''}`}>
+    <div ref={appRef} className={`app ${railOpen ? '' : 'rail-collapsed'} ${hazeOn ? 'is-haze-active' : ''}`}>
       <aside className="rail" key={hazeOn ? 'haze' : reporting ? 'report' : view + (selectedId ?? '')}>
         {rail}
       </aside>
@@ -300,11 +326,11 @@ export default function App() {
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}
 
-        {hazeOn && haze.data?.frames && (
+        {showHazeTimeline && (
           <HazeTimeline frame={hazeFrame} onChange={setHazeFrame} baseTime={haze.data.baseTime} />
         )}
 
-        {!hazeOn && selected && selected.alarm.level > 0 && !reporting && (
+        {showSpreadTimeline && (
           <Timeline
             minutes={horizonMinutes}
             onChange={changeHorizon}
