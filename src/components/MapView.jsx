@@ -128,7 +128,7 @@ function UserLocationPulse({ center }) {
   }, []);
 
   return (
-    <Circle
+    <CircleMarker
       center={center}
       radius={state.radius}
       pathOptions={{
