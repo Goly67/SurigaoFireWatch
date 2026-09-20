@@ -1050,7 +1050,7 @@ img.tile-base {
   .timeline { bottom: 12px; padding: 10px 14px; gap: 10px; }
 
   .rail-handle {
-    top: calc(100% - 52vh - 14px); left: 50%; bottom: auto;
+    top: calc(100% - 52vh - 18px); left: 50%; bottom: auto;
     width: 52px; height: 22px; border-radius: 8px;
     z-index: 1200;
     transform: translate(-50%, 0);
@@ -1059,6 +1059,9 @@ img.tile-base {
   .app.rail-collapsed .rail-handle {
     top: calc(100% - 66px - env(safe-area-inset-bottom));
     left: 50%; transform: translate(-50%, 0);
+  }
+  .app.is-haze-active.rail-collapsed .rail-handle {
+    top: calc(100% - 80px - env(safe-area-inset-bottom));
   }
   .rail-handle:active { transform: translate(-50%, -50%) scale(0.96); }
   .app.rail-collapsed .rail-handle:active { transform: translate(-50%, 0) scale(0.96); }

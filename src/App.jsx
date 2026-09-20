@@ -242,7 +242,7 @@ export default function App() {
   }
 
   return (
-    <div className={`app ${railOpen ? '' : 'rail-collapsed'}`}>
+    <div className={`app ${railOpen ? '' : 'rail-collapsed'} ${hazeOn ? 'is-haze-active' : ''}`}>
       <aside className="rail" key={hazeOn ? 'haze' : reporting ? 'report' : view + (selectedId ?? '')}>
         {rail}
       </aside>
