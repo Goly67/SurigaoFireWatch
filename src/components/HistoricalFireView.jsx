@@ -212,6 +212,18 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
   const { current: wind, error: windError, loading: windLoading } = useWindTrajectory(fire, minutes);
   const total = durationMinutes(fire);
 
+  const fireNarrative = useMemo(() => {
+    if (fire.id === 'taft-2026-08-12') {
+      const current = new Date(new Date(fire.startedAt).getTime() + minutes * 60000);
+      const hour = current.getHours() + current.getMinutes() / 60;
+      if (hour < 13) return 'Fire drift: N → NNW.';
+      if (hour >= 15) return 'Fire drift: NNW → NNE by 3:00 PM.';
+      return 'Fire drift: N → NNW → NNE.';
+    }
+
+    return null;
+  }, [fire, minutes]);
+
   const spread = useMemo(() => {
     if (!wind) return null;
 
@@ -321,19 +333,6 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
       </div>
 
       <BurnPlayback fire={fire} minutes={minutes} onChange={setMinutes} />
-
-      <p className="muted small wind-readout">
-        {windLoading && 'Loading reconstructed wind for this date…'}
-        {windError && `Historical wind unavailable (${windError}).`}
-        {wind && !windLoading && (
-          <>
-            At {new Date(timeAtOffset(fire, minutes)).toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })}:{' '}
-            wind {wind.speedKmh.toFixed(0)} km/h from {compassLabel(wind.fromDeg)}, pushing fire{' '}
-            {compassLabel((wind.fromDeg + 180) % 360)} · {wind.humidity.toFixed(0)}% humidity.
-            {' '}Reconstructed from Open-Meteo's ERA5 archive, not a ground station log.
-          </>
-        )}
-      </p>
 
       <section className="historical-facts">
         <h3>{fire.name}</h3>

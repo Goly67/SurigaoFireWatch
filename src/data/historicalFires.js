@@ -14,7 +14,7 @@
 export const historicalFires = [
   {
     id: 'taft-2026-08-12',
-    name: 'Purok Zenya, Nueva Extension (Nueva Guiding) fire',
+    name: 'Nueva Purok Zenia / Espina Purok Sampaguita fire',
     barangayId: 'taft',
     barangayName: 'Taft',
     // Exact ignition point and direction provided by the user:
@@ -30,7 +30,7 @@ export const historicalFires = [
     individualsAffected: null,
     housesAffected: 83,
     summary:
-      'Fire broke out at 12:48 p.m. between Espina Extension and Nueva Street (Purok Zenya / Nueva Guiding), Barangay Taft, and spread rapidly, reportedly pushed by strong winds through combustible light-material housing. The City Fire Marshal declared it under control at 3:11 p.m. The Surigao del Norte Police Provincial Office deployed personnel for peace and order during and after the incident. Relief goods (87 sets — food packs, beddings, hygiene kits, water) went out that evening to families sheltering at the Barangay Taft Gymnasium, with the Provincial Government, CSWDO, and civic groups including the Rotary Club of Surigao City (clean water) all contributing. A separate fire hit nearby Barangay Nabago on 9 Aug 2026 (42 households).',
+      'Fire broke out at 12:48 p.m. between Espina Extension and Nueva Street (Nueva Purok Zenia / Espina Purok Sampaguita), Barangay Taft, and spread rapidly, reportedly pushed by strong winds through combustible light-material housing. The City Fire Marshal declared it under control at 3:11 p.m. The Surigao del Norte Police Provincial Office deployed personnel for peace and order during and after the incident. Relief goods (87 sets — food packs, beddings, hygiene kits, water) went out that evening to families sheltering at the Barangay Taft Gymnasium, with the Provincial Government, CSWDO, and civic groups including the Rotary Club of Surigao City (clean water) all contributing. A separate fire hit nearby Barangay Nabago on 9 Aug 2026 (42 households).',
     sources: [
       {
         label: 'Sangguniang Panlungsod (City Council) minutes, 31st regular session, 13 Aug 2026',
