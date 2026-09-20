@@ -23,6 +23,7 @@ const flameSvg = `
 function incidentIcon(incident, isSelected, incidentState = 'active') {
   const held = incident.alarm.level === 0;
   const underControl = incidentState === 'under_control';
+  const lightWarning = held && !underControl;
   const alarmColor = underControl ? '#2F6CFF' : incident.alarm.color;
   const badgeCode = underControl ? 'UC' : incident.alarm.code;
   const showFire = !held && !underControl;
@@ -30,13 +31,13 @@ function incidentIcon(incident, isSelected, incidentState = 'active') {
   return L.divIcon({
     className: 'pin-wrap',
     html: `
-      <span class="fire-pin ${held ? 'is-light' : ''} ${isSelected ? 'is-selected' : ''}"
+      <span class="fire-pin ${lightWarning ? 'is-light' : ''} ${underControl ? 'is-under-control' : ''} ${isSelected ? 'is-selected' : ''}"
             style="--alarm:${alarmColor}">
         <span class="fire-ring"></span>
         <span class="fire-ring delay"></span>
         <span class="fire-glow"></span>
         <span class="fire-flame">${showFire ? flameSvg : ''}</span>
-        ${held ? '<span class="fire-smoke-dot"></span>' : ''}
+        ${lightWarning ? '<span class="fire-smoke-dot"></span>' : ''}
         <span class="fire-code">${badgeCode}</span>
       </span>`,
     iconSize: [44, 44],

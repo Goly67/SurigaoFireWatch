@@ -66,7 +66,14 @@ export default function App() {
   // Firebase Realtime Database when configured, in-memory sample data
   // otherwise — reportsStore.js hides which one this is.
   useEffect(() => subscribeToReports(setReports), []);
-  useEffect(() => subscribeToIncidentStatuses(setIncidentStatusMap), []);
+  useEffect(() => subscribeToIncidentStatuses(
+    setIncidentStatusMap,
+    (error) => setIncidentStatusError(
+      error?.code === 'PERMISSION_DENIED'
+        ? 'The app cannot read shared fire statuses. Check the incidentStatuses .read rule.'
+        : 'The app cannot connect to shared fire statuses.'
+    )
+  ), []);
   useEffect(() => subscribeToAirQualitySignals(setAirQualitySignals), []);
   useEffect(() => {
     let cancelled = false;

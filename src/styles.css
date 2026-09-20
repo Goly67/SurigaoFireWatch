@@ -576,6 +576,7 @@ input[type='range'] { accent-color: var(--orange); }
 .fire-pin.is-selected { transform: scale(1.12); }
 .fire-pin.is-light .fire-glow { background: radial-gradient(circle, #C9CFD4 0%, rgba(201,207,212,.35) 60%, transparent 75%); animation: none; }
 .fire-pin.is-light .fire-ring { display: none; }
+.fire-pin.is-under-control .fire-glow { background: radial-gradient(circle, #2F6CFF 0%, rgba(47,108,255,.35) 60%, transparent 75%); }
 
 .fire-smoke-dot {
   position: absolute; left: 50%; top: 50%; width: 9px; height: 9px;

@@ -52,11 +52,13 @@ let memoryIncidentStatuses = readIncidentStatusMap();
 const incidentStatusListeners = new Set();
 
 /** Subscribe to lifecycle states shared by every connected Fire Watch client. */
-export function subscribeToIncidentStatuses(callback) {
+export function subscribeToIncidentStatuses(callback, onError) {
   if (firebaseEnabled) {
-    return onValue(ref(db, 'incidentStatuses'), (snapshot) => {
-      callback(snapshot.val() ?? {});
-    });
+    return onValue(
+      ref(db, 'incidentStatuses'),
+      (snapshot) => callback(snapshot.val() ?? {}),
+      (error) => onError?.(error)
+    );
   }
 
   incidentStatusListeners.add(callback);
