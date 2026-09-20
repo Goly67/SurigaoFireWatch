@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Tooltip, useMap, useMapEvents,
 } from 'react-leaflet';
@@ -108,6 +108,40 @@ function ClickToPlace({ active, onPick }) {
   return null;
 }
 
+function UserLocationPulse({ center }) {
+  const [state, setState] = useState({ radius: 14, opacity: 0.9 });
+
+  useEffect(() => {
+    let rafId;
+    let start = performance.now();
+
+    const tick = (now) => {
+      const elapsed = ((now - start) % 1800) / 1800;
+      const radius = 14 + elapsed * 28;
+      const opacity = 0.9 - elapsed * 0.9;
+      setState({ radius, opacity });
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, []);
+
+  return (
+    <Circle
+      center={center}
+      radius={state.radius}
+      pathOptions={{
+        color: '#1677D2',
+        weight: 3,
+        fill: false,
+        opacity: state.opacity,
+        dashArray: '0',
+      }}
+    />
+  );
+}
+
 function UserLocationMarker({ location, accuracy }) {
   if (!location) return null;
   return (
@@ -124,11 +158,7 @@ function UserLocationMarker({ location, accuracy }) {
         radius={8}
         pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
       />
-      <CircleMarker
-        center={location}
-        radius={13}
-        pathOptions={{ color: '#1677D2', weight: 3, fill: false, className: 'user-location-pulse' }}
-      />
+      <UserLocationPulse center={location} />
     </>
   );
 }
