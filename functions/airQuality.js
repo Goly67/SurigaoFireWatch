@@ -68,3 +68,4 @@ exports.pollAirQuality = onSchedule(
 );
 
 exports.fetchPM25 = fetchPM25;
+

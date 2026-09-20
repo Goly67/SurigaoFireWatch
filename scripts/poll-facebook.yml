@@ -24,3 +24,4 @@ jobs:
 
       - name: Poll Facebook
         run: node scripts/poll-facebook.mjs
+

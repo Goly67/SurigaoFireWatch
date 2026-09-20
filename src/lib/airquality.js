@@ -23,3 +23,4 @@ export async function fetchPm25(points) {
     return typeof value === 'number' ? value : null;
   });
 }
+

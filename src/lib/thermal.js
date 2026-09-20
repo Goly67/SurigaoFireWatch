@@ -47,3 +47,4 @@ export async function fetchThermalHotspots() {
     .finally(() => { request = null; });
   return request;
 }
+

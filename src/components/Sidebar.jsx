@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+import brandLogo from '../assets/SFW-BIGGER-LOGO.png';
 import { compassLabel } from '../lib/geo.js';
 import { bfpStations, regions, STATION_DATA_NOTE } from '../data/bfpStations.js';
 import { ALARM_LEVELS } from '../lib/alarmLevels.js';
@@ -22,6 +24,43 @@ const relative = (minutes) => {
   return `${(minutes / 60).toFixed(1)} h ago`;
 };
 
+function BrandMark() {
+  const [isLowRes, setIsLowRes] = useState(false);
+  const [brandSrc, setBrandSrc] = useState(brandLogo);
+
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const pixelSize = 30;
+      canvas.width = pixelSize;
+      canvas.height = pixelSize;
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      context.imageSmoothingEnabled = false;
+      context.drawImage(img, 0, 0, pixelSize, pixelSize);
+      setBrandSrc(canvas.toDataURL('image/png'));
+    };
+    img.src = brandLogo;
+  }, []);
+
+  return (
+    <span
+      className={`brand-mark ${isLowRes ? 'is-low-res' : ''}`}
+      aria-hidden="true"
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setIsLowRes(true);
+      }}
+      onDragStart={(event) => event.preventDefault()}
+      onDoubleClick={() => setIsLowRes(false)}
+      onMouseLeave={() => setIsLowRes(false)}
+    >
+      <img src={brandSrc} alt="" draggable="false" />
+    </span>
+  );
+}
+
 export default function Sidebar({
   incidents, wind, selectedId, showStations, onToggleStations, onSelect, onReport, onOpenLevels,
   airQualityActive = false,
@@ -31,9 +70,12 @@ export default function Sidebar({
   return (
     <div className="panel sidebar">
       <header className="brand">
-        <h1>Surigao Fire Watch</h1>
+        <h1>
+          <BrandMark />
+          <span>Surigao Fire Watch</span>
+        </h1>
         <p>
-          Crowdsourced reports, aerial sweeps, and a wind model that says where the
+          Crowdsourced reports, and a wind model that says where the
           fire goes next.
         </p>
       </header>
