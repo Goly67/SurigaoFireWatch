@@ -3,7 +3,7 @@ import { CircleMarker, Marker, Polyline, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import '../haze.css';
 import {
-  FRAME_COUNT, FRAME_HOURS, HOME, HOME_REGION, LEVELS, SMOKE_BOUNDS, loadHaze, renderSmokeFrames,
+  FRAME_COUNT, FRAME_HOURS, HOME, HOME_REGION, LEVELS, SMOKE_BOUNDS, isPointInCaraga, loadHaze, renderSmokeFrames,
 } from '../lib/haze.js';
 
 const PH_TIME = new Intl.DateTimeFormat('en-PH', {
@@ -343,9 +343,11 @@ export function HazeTimeline({ frame, onChange, baseTime }) {
 
 /* ----------------------------------------------------------------- panel */
 
-export function HazePanel({ haze, frame, onFocus }) {
+export function HazePanel({ haze, frame, onFocus, userLocation, userInCaraga }) {
   const { status, data, error, reload } = haze;
-  const home = data?.regions.find((r) => r.code === HOME_REGION);
+  const home = userLocation && userInCaraga
+    ? data?.regions.find((r) => r.code === HOME_REGION)
+    : null;
   const loading = status === 'loading' || status === 'idle';
 
   return (
@@ -397,7 +399,7 @@ export function HazePanel({ haze, frame, onFocus }) {
 
           {home && (
             <div className={`haze-home-card is-${LEVELS[home.nowLevel >= 1 ? home.nowLevel : home.peakLevel].key}`}>
-              <span className="haze-eyebrow">Surigao · Caraga</span>
+              <span className="haze-eyebrow">Your region: Surigao · Caraga</span>
               <strong>{regionStatus(home)}</strong>
               <span className="muted small">
                 {home.peakLevel >= 1

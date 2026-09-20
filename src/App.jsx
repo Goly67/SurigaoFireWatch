@@ -12,6 +12,7 @@ import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
 import { distanceMeters } from './lib/geo.js';
+import { isPointInCaraga } from './lib/haze.js';
 import {
   subscribeToReports, addReport, usingFirebase,
   subscribeToAirQualitySignals, subscribeToPostApprovals, approveForPost, revokePostApproval,
@@ -173,10 +174,19 @@ export default function App() {
   }
 
   const reporting = !hazeOn && view === 'report';
+  const userInCaraga = userLocation ? isPointInCaraga(userLocation) : false;
 
   let rail;
   if (hazeOn) {
-    rail = <HazePanel haze={haze} frame={hazeFrame} onFocus={(c) => setHazeFocus([...c])} />;
+    rail = (
+      <HazePanel
+        haze={haze}
+        frame={hazeFrame}
+        onFocus={(c) => setHazeFocus([...c])}
+        userLocation={userLocation}
+        userInCaraga={userInCaraga}
+      />
+    );
   } else if (reporting) {
     rail = (
       <ReportForm

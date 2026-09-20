@@ -587,6 +587,24 @@ export const levelOf = (v) => (v >= LEVELS[3].min ? 3 : v >= LEVELS[2].min ? 2 :
 
 export const HOME_REGION = 'XIII'; // Caraga — Surigao City
 
+export function pointInPolygon(point, polygon) {
+  const [lat, lon] = point;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const [latI, lonI] = polygon[i];
+    const [latJ, lonJ] = polygon[j];
+    const intersects = ((latI > lat) !== (latJ > lat))
+      && (lon < ((lonJ - lonI) * (lat - latI)) / (latJ - latI + Number.EPSILON) + lonI);
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+export function isPointInCaraga(point) {
+  const caraga = REGIONS.find((r) => r.code === HOME_REGION);
+  return Boolean(caraga && pointInPolygon(point, caraga.points));
+}
+
 // Representative towns per region, [lat, lon]. A region counts as hazed when
 // the smoke grid near any of them crosses a threshold.
 const REGIONS = [
