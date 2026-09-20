@@ -742,7 +742,18 @@ input[type='range'] { accent-color: var(--orange); }
 }
 
 .notify-tools {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 10px;
+}
+
+.admin-button {
+  width: 42px; height: 42px; padding: 0; border: 1px solid var(--line); border-radius: 50%;
+  background: var(--paper); color: var(--ink-soft); box-shadow: var(--shadow);
+  display: grid; place-items: center; flex: none;
+}
+
+.admin-button:hover { border-color: var(--orange); background: var(--orange-wash); color: var(--orange-deep); }
+.admin-button-icon {
+  width: 20px; height: 20px; display: block;
 }
 
 @media (max-width: 900px) {
@@ -754,15 +765,11 @@ input[type='range'] { accent-color: var(--orange); }
   .notify-tools {
     gap: 6px;
   }
-}
 
-.admin-button {
-  border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
-  color: var(--ink); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em;
-  text-transform: uppercase; padding: 9px 12px; box-shadow: var(--shadow);
+  .admin-button {
+    width: 38px; height: 38px;
+  }
 }
-
-.admin-button:hover { border-color: var(--orange); background: var(--orange-wash); }
 
 /* Anchors the dropdown to the bell itself (position: absolute below), rather
    than letting it fall into normal document flow underneath whatever else
@@ -1061,7 +1068,7 @@ img.tile-base {
     left: 50%; transform: translate(-50%, 0);
   }
   .app.is-haze-active.rail-collapsed .rail-handle {
-    top: calc(100% - 80px - env(safe-area-inset-bottom));
+    top: calc(100% - 126px - env(safe-area-inset-bottom));
   }
   .rail-handle:active { transform: translate(-50%, -50%) scale(0.96); }
   .app.rail-collapsed .rail-handle:active { transform: translate(-50%, 0) scale(0.96); }

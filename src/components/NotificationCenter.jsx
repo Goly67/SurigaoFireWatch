@@ -122,7 +122,15 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
       </div>
 
       <div className="notify-tools">
-        <button className="admin-button" onClick={onOpenAdmin} type="button">Admin</button>
+        <button
+          className="admin-button"
+          onClick={onOpenAdmin}
+          type="button"
+          aria-label="Open admin panel"
+          title="Admin panel"
+        >
+          <AdminGlyph />
+        </button>
         <button
           className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
           onClick={() => setOpen((o) => !o)}
@@ -191,6 +199,16 @@ function BellGlyph({ ringing }) {
     <svg viewBox="0 0 24 24" className={`bell-glyph ${ringing ? 'is-ringing' : ''}`} aria-hidden="true">
       <path d="M12 2.5c-1 0-1.8.8-1.8 1.8v.6C7.9 5.5 6.2 7.7 6.2 10.3v4l-1.6 2.4c-.3.5.03 1.1.6 1.1h13.6c.57 0 .9-.6.6-1.1l-1.6-2.4v-4c0-2.6-1.7-4.8-4-5.4v-.6c0-1-.8-1.8-1.8-1.8z" />
       <path d="M9.6 19.4a2.4 2.4 0 0 0 4.8 0z" />
+    </svg>
+  );
+}
+
+function AdminGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" className="admin-button-icon" aria-hidden="true">
+      <circle cx="12" cy="7.3" r="3.2" fill="currentColor" opacity="0.9" />
+      <path d="M5.5 18.1c1.1-2.5 3.2-3.8 6.5-3.8s5.4 1.3 6.5 3.8" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M8.5 10.4l3.5 2.4 3.5-2.4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.8" />
     </svg>
   );
 }
