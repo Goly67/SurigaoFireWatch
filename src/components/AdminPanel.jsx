@@ -14,13 +14,35 @@ const STATUS_LABEL = {
   rejected: 'Rejected',
 };
 
+const ADMIN_EMAILS = ['forestparty223@gmail.com'];
+
+function isAuthorizedAdmin(user) {
+  return !!user && typeof user.email === 'string' && ADMIN_EMAILS.includes(user.email.toLowerCase());
+}
+
 export default function AdminPanel({ reports = [], onClose }) {
   const [loginError, setLoginError] = useState('');
   const [user, setUser] = useState(null);
 
   useEffect(() => {
     if (!auth) return undefined;
-    return onAuthStateChanged(auth, (nextUser) => setUser(nextUser));
+
+    return onAuthStateChanged(auth, async (nextUser) => {
+      if (!nextUser) {
+        setUser(null);
+        return;
+      }
+
+      if (!isAuthorizedAdmin(nextUser)) {
+        setLoginError('This Google account is not authorized for admin access.');
+        await signOut(auth);
+        setUser(null);
+        return;
+      }
+
+      setLoginError('');
+      setUser(nextUser);
+    });
   }, []);
 
   const queue = useMemo(() => [...reports].sort((a, b) => {
