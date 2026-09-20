@@ -14,7 +14,7 @@ const relative = (minutes) => {
  * derived by diffing against the previous render, not stored anywhere, so a
  * refresh just shows the current state with no backlog to replay.
  */
-export default function NotificationCenter({ incidents, onSelect }) {
+export default function NotificationCenter({ incidents, onSelect, onOpenAdmin }) {
   const [open, setOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [soundPrompt, setSoundPrompt] = useState(() => {
@@ -121,15 +121,19 @@ export default function NotificationCenter({ incidents, onSelect }) {
         ))}
       </div>
 
-      <button
-        className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label="Fire notifications"
-      >
-        <BellGlyph ringing={activeCount > 0} />
-        {activeCount > 0 && <span className="bell-badge">{activeCount}</span>}
-      </button>
+      <div className="notify-tools">
+        <button className="admin-button" onClick={onOpenAdmin} type="button">Admin</button>
+        <button
+          className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-label="Fire notifications"
+          type="button"
+        >
+          <BellGlyph ringing={activeCount > 0} />
+          {activeCount > 0 && <span className="bell-badge">{activeCount}</span>}
+        </button>
+      </div>
 
       {open && (
         <div className="bell-dropdown">
@@ -158,26 +162,26 @@ export default function NotificationCenter({ incidents, onSelect }) {
             ))}
           </ul>
         </div>
-        )}
+      )}
 
-        {soundPrompt && createPortal(
-          <div className="sound-modal-backdrop" role="presentation">
-            <section className="sound-modal" role="dialog" aria-modal="true" aria-labelledby="sound-modal-title">
-              <span className="sound-modal-icon" aria-hidden="true">!</span>
-              <h2 id="sound-modal-title">Turn on alarm sounds</h2>
-              <p>Allow alarm sounds so you can hear new fire reports and alarm escalations.</p>
-              <p className="muted small">Your device volume and silent mode control the volume.</p>
-              <div className="sound-modal-actions">
-                <button className="secondary" onClick={() => {
-                  localStorage.setItem('fire-watch-sounds', 'dismissed');
-                  setSoundPrompt(false);
-                }}>Not now</button>
-                <button className="primary" onClick={turnOnSounds}>Enable sounds</button>
-              </div>
-            </section>
-          </div>,
-          document.body
-        )}
+      {soundPrompt && createPortal(
+        <div className="sound-modal-backdrop" role="presentation">
+          <section className="sound-modal" role="dialog" aria-modal="true" aria-labelledby="sound-modal-title">
+            <span className="sound-modal-icon" aria-hidden="true">!</span>
+            <h2 id="sound-modal-title">Turn on alarm sounds</h2>
+            <p>Allow alarm sounds so you can hear new fire reports and alarm escalations.</p>
+            <p className="muted small">Your device volume and silent mode control the volume.</p>
+            <div className="sound-modal-actions">
+              <button className="secondary" onClick={() => {
+                localStorage.setItem('fire-watch-sounds', 'dismissed');
+                setSoundPrompt(false);
+              }}>Not now</button>
+              <button className="primary" onClick={turnOnSounds}>Enable sounds</button>
+            </div>
+          </section>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }

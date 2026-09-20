@@ -61,6 +61,8 @@ export function buildIncidents(reports, wind, airQualitySignals = [], thermalHot
     return Number.isFinite(detectedAt) && now - detectedAt <= 30 * 60 * 1000;
   });
   const activeReports = reports.filter((report) => {
+    const status = report.status ?? 'approved';
+    if (status === 'rejected' || status === 'pending') return false;
     const reportedAt = new Date(report.reportedAt).getTime();
     return Number.isFinite(reportedAt) && now - reportedAt <= ACTIVE_FIRE_WINDOW_MS;
   });

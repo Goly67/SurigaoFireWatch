@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { getDatabase } from 'firebase/database';
 
 /**
@@ -17,9 +18,11 @@ const config = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-export const firebaseEnabled = Boolean(config.databaseURL && config.apiKey);
+export const firebaseEnabled = Boolean(config.databaseURL && config.apiKey && config.authDomain);
 
-export const db = firebaseEnabled ? getDatabase(initializeApp(config)) : null;
+const firebaseApp = firebaseEnabled ? initializeApp(config) : null;
+export const db = firebaseApp ? getDatabase(firebaseApp) : null;
+export const auth = firebaseApp ? getAuth(firebaseApp) : null;
 
 if (!firebaseEnabled) {
   console.info(

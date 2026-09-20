@@ -7,6 +7,7 @@ import IncidentPanel from './components/IncidentPanel.jsx';
 import WarningSystem from './components/WarningSystem.jsx';
 import Timeline from './components/Timeline.jsx';
 import NotificationCenter from './components/NotificationCenter.jsx';
+import AdminPanel from './components/AdminPanel.jsx';
 import { HazePanel, HazeTimeline, HazeToggle, useHaze } from './components/HazeUI.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
@@ -41,6 +42,7 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
+  const [adminOpen, setAdminOpen] = useState(false);
 
   const haze = useHaze(hazeOn);
 
@@ -267,7 +269,10 @@ export default function App() {
             setHorizonMinutes(30);
             setRailOpen(true);
           }}
+          onOpenAdmin={() => setAdminOpen(true)}
         />
+
+        {adminOpen && <AdminPanel reports={reports} onClose={() => setAdminOpen(false)} />}
 
         {!usingFirebase && !hazeOn && (
           <div className="db-flag" title="Copy .env.example to .env.local with your Firebase project to go live">

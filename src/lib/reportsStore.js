@@ -1,6 +1,15 @@
-import { ref, onValue, set, remove } from 'firebase/database';
+import { ref, onValue, set, remove, get } from 'firebase/database';
 import { db, firebaseEnabled } from './firebase.js';
 import { seedReports } from '../data/surigao.js';
+
+function withReviewDefaults(report) {
+  return {
+    ...report,
+    status: report.status ?? 'approved',
+    reviewedBy: report.reviewedBy ?? null,
+    reviewedAt: report.reviewedAt ?? null,
+  };
+}
 
 /**
  * Single seam between the app and storage. Everything above this file works
@@ -12,7 +21,7 @@ import { seedReports } from '../data/surigao.js';
  *   driveUrl, reportedAt }
  */
 
-let memoryReports = [...seedReports];
+let memoryReports = [...seedReports].map(withReviewDefaults);
 const memoryListeners = new Set();
 
 function notifyMemoryListeners() {
@@ -39,12 +48,71 @@ export function subscribeToReports(callback) {
 
 /** Write a new report. Resolves once it is committed (or added in-memory). */
 export async function addReport(report) {
+  const next = withReviewDefaults({
+    ...report,
+    status: report.status ?? 'pending',
+    reviewedBy: report.reviewedBy ?? null,
+    reviewedAt: report.reviewedAt ?? null,
+  });
+
   if (firebaseEnabled) {
-    await set(ref(db, `reports/${report.id}`), report);
+    await set(ref(db, `reports/${next.id}`), next);
     return;
   }
 
-  memoryReports = [...memoryReports, report];
+  memoryReports = [...memoryReports, next];
+  notifyMemoryListeners();
+}
+
+export async function updateReport(reportId, updates) {
+  const base = memoryReports.find((item) => item.id === reportId) ?? {
+    id: reportId,
+    reportedAt: new Date().toISOString(),
+    status: 'pending',
+  };
+  const nextReport = { ...base, ...updates };
+
+  if (firebaseEnabled) {
+    await set(ref(db, `reports/${reportId}`), {
+      ...nextReport,
+      status: updates.status ?? nextReport.status ?? 'approved',
+    });
+    return;
+  }
+
+  memoryReports = memoryReports.map((item) => (item.id === reportId ? withReviewDefaults({ ...item, ...updates }) : item));
+  notifyMemoryListeners();
+}
+
+export async function setReportStatus(reportId, status, reviewedBy = 'admin') {
+  const timestamp = new Date().toISOString();
+  const updates = {
+    status,
+    reviewedBy,
+    reviewedAt: timestamp,
+  };
+
+  if (firebaseEnabled) {
+    const refValue = ref(db, `reports/${reportId}`);
+    const current = await get(refValue);
+    const currentValue = current.val() ?? {};
+    await set(refValue, { ...currentValue, ...updates });
+    return;
+  }
+
+  memoryReports = memoryReports.map((item) => (
+    item.id === reportId ? withReviewDefaults({ ...item, ...updates }) : item
+  ));
+  notifyMemoryListeners();
+}
+
+export async function deleteReport(reportId) {
+  if (firebaseEnabled) {
+    await remove(ref(db, `reports/${reportId}`));
+    return;
+  }
+
+  memoryReports = memoryReports.filter((item) => item.id !== reportId);
   notifyMemoryListeners();
 }
 

@@ -741,6 +741,18 @@ input[type='range'] { accent-color: var(--orange); }
   display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
 }
 
+.notify-tools {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.admin-button {
+  border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
+  color: var(--ink); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em;
+  text-transform: uppercase; padding: 9px 12px; box-shadow: var(--shadow);
+}
+
+.admin-button:hover { border-color: var(--orange); background: var(--orange-wash); }
+
 /* Anchors the dropdown to the bell itself (position: absolute below), rather
    than letting it fall into normal document flow underneath whatever else
    is stacked in .notify-root — that gap was the bug. */
@@ -900,6 +912,72 @@ input[type='range'] { accent-color: var(--orange); }
 .sound-modal h2 { margin-bottom: 8px; }
 .sound-modal p { line-height: 1.5; }
 .sound-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+.admin-overlay {
+  position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center;
+  background: rgba(36, 26, 20, 0.55); padding: 20px;
+}
+.admin-panel {
+  width: min(920px, 100%); max-height: min(82vh, 860px); overflow: auto;
+  background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
+  box-shadow: var(--shadow-lift); padding: 20px;
+}
+.admin-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px;
+}
+.admin-kicker {
+  margin: 0 0 6px; color: var(--orange-deep); text-transform: uppercase; letter-spacing: 0.08em;
+  font-size: 0.72rem; font-weight: 800;
+}
+.admin-login {
+  display: grid; gap: 14px;
+}
+.admin-login label,
+.admin-report label {
+  display: grid; gap: 8px; font-weight: 600; color: var(--ink-soft);
+}
+.admin-login input,
+.admin-login textarea,
+.admin-report input,
+.admin-report textarea {
+  width: 100%; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 10px 12px;
+  font: inherit; color: var(--ink);
+}
+.admin-report textarea { min-height: 90px; resize: vertical; }
+.admin-error {
+  margin: 0; color: #B3261E; font-weight: 700; font-size: 0.9rem;
+}
+.admin-user-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--orange-wash);
+}
+.admin-list {
+  display: grid; gap: 14px;
+}
+.admin-report {
+  border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 16px;
+  display: grid; gap: 12px;
+}
+.admin-report--rejected { border-color: rgba(179, 38, 30, 0.35); }
+.admin-report--pending { border-color: rgba(244, 112, 10, 0.35); }
+.admin-report-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.admin-meta { color: var(--ink-soft); font-size: 0.8rem; }
+.status-pill {
+  display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 999px;
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.status-pill--pending { background: rgba(244, 112, 10, 0.12); color: var(--orange-deep); }
+.status-pill--approved { background: rgba(35, 140, 95, 0.12); color: #127a52; }
+.status-pill--rejected { background: rgba(179, 38, 30, 0.12); color: #B3261E; }
+.admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.admin-evidence {
+  border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #f7f3ee;
+}
+.admin-evidence iframe {
+  width: 100%; min-height: 180px; border: 0; display: block; background: #000;
+}
 .evacuation-backdrop { position: fixed; inset: 0; z-index: 4000; display: grid; place-items: center; padding: 20px; background: rgba(36, 26, 20, 0.62); }
 .evacuation-modal { width: min(390px, 100%); padding: 24px; border: 2px solid #B3261E; border-radius: 16px; background: #fff; box-shadow: 0 20px 60px rgba(36, 26, 20, 0.28); }
 .evacuation-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 10px; border-radius: 50%; background: #B3261E; color: #fff; font-size: 1.5rem; font-weight: 900; }
@@ -953,8 +1031,14 @@ img.tile-base {
   .app.rail-collapsed .rail-handle-arrow { transform: rotate(225deg); }
 
   .notify-root { top: 12px; right: 12px; }
+  .notify-tools { gap: 6px; }
+  .admin-button { padding: 8px 10px; font-size: 0.66rem; }
   .toast, .bell-dropdown { width: min(280px, 82vw); }
   .bell-dropdown { max-height: min(360px, 60vh); }
+  .admin-panel { max-height: min(86vh, 640px); padding: 16px; }
+  .admin-user-bar { flex-direction: column; align-items: flex-start; }
+  .admin-actions { flex-direction: column; }
+  .admin-actions button { width: 100%; }
   .panel { padding: 18px 14px; }
   .sound-modal-actions { flex-direction: column-reverse; }
   .sound-modal-actions button { width: 100%; }
