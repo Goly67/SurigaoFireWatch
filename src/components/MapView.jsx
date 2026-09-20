@@ -153,12 +153,12 @@ function UserLocationMarker({ location, accuracy }) {
           pathOptions={{ color: '#1677D2', weight: 1, fillColor: '#1677D2', fillOpacity: 0.08 }}
         />
       )}
+      <UserLocationPulse center={location} />
       <CircleMarker
         center={location}
         radius={8}
         pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
       />
-      <UserLocationPulse center={location} />
     </>
   );
 }
