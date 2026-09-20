@@ -83,24 +83,36 @@ function BurnPlayback({ fire, minutes, onChange }) {
   );
 }
 
-function SatelliteCheck({ fire }) {
+function SatelliteCheck({ fire, onHotspotsChange }) {
   const [keyInput, setKeyInput] = useState('');
   const [hasKey, setHasKey] = useState(() => Boolean(getFirmsMapKey()));
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const runCheck = (fireToCheck) => {
-    if (!getFirmsMapKey()) { setResult({ status: 'no_key' }); return; }
+    if (!getFirmsMapKey()) {
+      setResult({ status: 'no_key' });
+      onHotspotsChange?.([]);
+      return;
+    }
     setLoading(true);
     checkHistoricalHotspots({
       location: fireToCheck.location,
       dateIso: fireToCheck.startedAt,
       startedAt: fireToCheck.startedAt,
       containedAt: fireToCheck.containedAt,
-    }).then((r) => { setResult(r); setLoading(false); });
+    }).then((r) => {
+      setResult(r);
+      onHotspotsChange?.(r.status === 'ok' ? r.matched : []);
+      setLoading(false);
+    });
   };
 
   useEffect(() => { runCheck(fire); }, [fire.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!hasKey) onHotspotsChange?.([]);
+  }, [hasKey, onHotspotsChange]);
 
   function saveKey() {
     setFirmsMapKey(keyInput);
@@ -205,6 +217,7 @@ function useWindTrajectory(fire, minutes) {
 export default function HistoricalFireView({ onClose, onOverlayChange }) {
   const [fireId, setFireId] = useState(historicalFires[0]?.id ?? null);
   const [minutes, setMinutes] = useState(0);
+  const [firmsHotspots, setFirmsHotspots] = useState([]);
   const fire = historicalFires.find((f) => f.id === fireId) ?? historicalFires[0];
 
   useEffect(() => { setMinutes(0); }, [fireId]);
@@ -269,8 +282,9 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
       fire: fire.location,
       spread,
       direction: destination(fire.location, spread.headBearing, spread.headDistanceM * 1.15),
+      hotspots: firmsHotspots,
     });
-  }, [fire, spread, onOverlayChange]);
+  }, [fire, spread, firmsHotspots, onOverlayChange]);
 
   return (
     <div className="panel historical-fire-view">
@@ -322,6 +336,18 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
               />
             </>
           )}
+          {firmsHotspots.map((hotspot, idx) => (
+            <CircleMarker
+              key={`${hotspot.sensor}-${hotspot.acqDate}-${hotspot.acqTime}-${idx}`}
+              center={[hotspot.lat, hotspot.lon]}
+              radius={7}
+              pathOptions={{ color: '#fff6f0', weight: 2, fillColor: '#ff7a00', fillOpacity: 0.9 }}
+            >
+              <Tooltip direction="top" sticky>
+                {hotspot.sensor.replace('_NRT', '').replace('_', ' ')} · {hotspot.acqDate} {String(hotspot.acqTime || '0000').padStart(4, '0')} UTC · FRP {Number(hotspot.frp || 0).toFixed(1)} MW · confidence {hotspot.confidence}
+              </Tooltip>
+            </CircleMarker>
+          ))}
           <CircleMarker
             center={fire.location}
             radius={8}
@@ -359,7 +385,7 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
         </p>
       </section>
 
-      <SatelliteCheck fire={fire} />
+      <SatelliteCheck fire={fire} onHotspotsChange={setFirmsHotspots} />
 
       <footer className="disclaimer">
         Fire location is an approximate barangay/purok-level pin, not a verified

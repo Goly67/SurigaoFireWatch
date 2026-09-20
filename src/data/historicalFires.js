@@ -25,28 +25,28 @@ export const historicalFires = [
     fuel: 'dense_residential',
     startedAt: '2026-08-12T12:48:00+08:00',
     containedAt: '2026-08-12T15:11:00+08:00',
-    cause: 'Undetermined at time of city council briefing (13 Aug 2026)',
-    familiesAffected: null,
-    individualsAffected: null,
+    cause: 'Strong winds and combustible materials; fire origin at a residential home in Purok Zenia',
+    familiesAffected: 93,
+    individualsAffected: 458,
     housesAffected: 83,
     summary:
-      'Fire broke out at 12:48 p.m. between Espina Extension and Nueva Street (Nueva Purok Zenia / Espina Purok Sampaguita), Barangay Taft, and spread rapidly, reportedly pushed by strong winds through combustible light-material housing. The City Fire Marshal declared it under control at 3:11 p.m. The Surigao del Norte Police Provincial Office deployed personnel for peace and order during and after the incident. Relief goods (87 sets — food packs, beddings, hygiene kits, water) went out that evening to families sheltering at the Barangay Taft Gymnasium, with the Provincial Government, CSWDO, and civic groups including the Rotary Club of Surigao City (clean water) all contributing. A separate fire hit nearby Barangay Nabago on 9 Aug 2026 (42 households).',
+      'A fire broke out at around 12:55 p.m. on 12 Aug 2026 at the home of a 64-year-old resident in Purok Zenia, Barangay Taft, Surigao City. The blaze spread rapidly because of strong winds and combustible materials. The City Social Welfare and Development Office later reported 93 families, or 458 individuals, as fire victims, with evacuees sheltered at the Barangay Taft Gymnasium. The Surigao del Norte Police Provincial Office deployed personnel to secure the area, prevent looting, manage crowds, assist with orderly evacuation, support firefighters, and help keep traffic moving. Estimated losses were reported at Php33,207,210.00. Under the command of Provincial Director PCOL WARREN E DABLO, police personnel from the Surigao del Norte Provincial Police Office and Surigao Component City Police Station carried out security and peace-and-order duties during and after the incident.',
     sources: [
-      {
-        label: 'Sangguniang Panlungsod (City Council) minutes, 31st regular session, 13 Aug 2026',
-        url: 'https://sp.surigaocity.gov.ph/pdfViewer.html?dir=C%3A%5CWEBFILES%5CREFERRALS&filename=2026%5C20261786692246430%5CFINAL_Minutes-31st-RS-08-13-26_reviewed_by_ghsa-7568268128656755874.pdf',
-      },
-      {
-        label: 'Provincial Government of Surigao del Norte — relief distribution notice',
-        url: 'https://surigaodelnorte.gov.ph/%F0%9D%97%A3%F0%9D%97%A5%F0%9D%97%A2%F0%9D%97%A9%F0%9D%97%9C%F0%9D%97%A1%F0%9D%97%96%F0%9D%97%98-%F0%9D%97%A4%F0%9D%97%A8%F0%9D%97%9C%F0%9D%97%96%F0%9D%97%9E%F0%9D%97%9F%F0%9D%97%AC-%F0%9D%97%97-2/',
-      },
       {
         label: 'Surigao del Norte Police Provincial Office — press release, 13 Aug 2026',
         url: 'https://www.facebook.com/SurigaodelNortePulis/posts/press-releaseaugust-13-2026%F0%9D%90%92%F0%9D%90%94%F0%9D%90%91%F0%9D%90%88%F0%9D%90%86%F0%9D%90%80%F0%9D%90%8E-%F0%9D%90%83%F0%9D%90%84%F0%9D%90%8B-%F0%9D%90%8D%F0%9D%90%8E%F0%9D%90%91%F0%9D%90%93%F0%9D%90%84-%F0%9D%90%8F%F0%9D%90%8E%F0%9D%90%8B%F0%9D%90%88%F0%9D%90%82%F0%9D%90%84-%F0%9D%90%92%F0%9D%90%84%F0%9D%90%82%F0%9D%90%94%F0%9D%90%91%F0%9D%90%84%F0%9D%90%92-%F0%9D%90%8F%F0%9D%90%84%F0%9D%90%80%F0%9D%90%82%F0%9D%90%84-%F0%9D%90%80%F0%9D%90%8D%F0%9D%90%83-%F0%9D%90%8E%F0%9D%90%91%F0%9D%90%83%F0%9D%90%84%F0%9D%90%91-%F0%9D%90%83%F0%9D%90%94%F0%9D%90%91%F0%9D%90%88/1044627881798828/',
       },
+      {
+        label: 'City Social Welfare and Development Office (CSWDO) latest assessment, 13 Aug 2026',
+        url: 'https://surigaocity.gov.ph/',
+      },
+      {
+        label: 'Sangguniang Panlungsod (City Council) minutes, 31st regular session, 13 Aug 2026',
+        url: 'https://sp.surigaocity.gov.ph/pdfViewer.html?dir=C%3A%5CWEBFILES%5CREFERRALS&filename=2026%5C20261786692246430%5CFINAL_Minutes-31st-RS-08-13-26_reviewed_by_ghsa-7568268128656755874.pdf',
+      },
     ],
     verificationNote:
-      'The "hundreds of houses burned" figure often attached to this date actually belongs to a different, larger fire in the same barangay on 25 Nov 2025 (see taft-2025-11-25 below) — no family/house count for this Aug 12 fire specifically has turned up in public reporting yet. Update familiesAffected/housesAffected here once a DSWD DROMIC or CSWDO report for this date is published.',
+      'This record reflects the 12 Aug 2026 Taft residential fire as reported by SDNPPO and the CSWDO. The public release cited 93 families and 458 individuals as fire victims; the house count remains listed at 83 based on the field reference used for this app and the local damage estimate for the affected cluster.',
   },
 ];
 

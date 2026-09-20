@@ -435,6 +435,18 @@ export default function MapView({
             positions={[historicalOverlay.fire, historicalOverlay.direction]}
             pathOptions={{ color: '#DC6207', weight: 2, dashArray: '6 10' }}
           />
+          {(historicalOverlay.hotspots ?? []).map((hotspot, idx) => (
+            <CircleMarker
+              key={`${hotspot.sensor}-${hotspot.acqDate}-${hotspot.acqTime}-${idx}`}
+              center={[hotspot.lat, hotspot.lon]}
+              radius={7}
+              pathOptions={{ color: '#fff5ef', weight: 2, fillColor: '#ff7a00', fillOpacity: 0.9 }}
+            >
+              <Tooltip direction="top" sticky>
+                {hotspot.sensor.replace('_NRT', '').replace('_', ' ')} · {hotspot.acqDate} {String(hotspot.acqTime || '0000').padStart(4, '0')} UTC · FRP {Number(hotspot.frp || 0).toFixed(1)} MW · confidence {hotspot.confidence}
+              </Tooltip>
+            </CircleMarker>
+          ))}
           <CircleMarker
             center={historicalOverlay.fire}
             radius={8}
