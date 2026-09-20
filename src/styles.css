@@ -922,8 +922,17 @@ input[type='range'] { accent-color: var(--orange); }
   background: var(--paper); border: 1px solid var(--line); border-radius: 18px;
   box-shadow: var(--shadow-lift); padding: 20px;
 }
+.admin-panel--compact {
+  max-height: min(64vh, 640px);
+}
 .admin-head {
   display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px;
+}
+.admin-head-tools {
+  display: flex; align-items: center; gap: 10px;
+}
+.small-button {
+  padding: 8px 10px; font-size: 0.72rem; border-radius: 10px; min-height: 36px;
 }
 .admin-kicker {
   margin: 0 0 6px; color: var(--orange-deep); text-transform: uppercase; letter-spacing: 0.08em;
@@ -951,6 +960,17 @@ input[type='range'] { accent-color: var(--orange); }
   display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px;
   padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--orange-wash);
 }
+.admin-tabs {
+  display: flex; gap: 8px; margin-bottom: 14px;
+  overflow-x: auto;
+}
+.admin-tab {
+  flex: 1 1 0; border: 1px solid var(--line); background: #fff; color: var(--ink-soft);
+  padding: 10px 14px; border-radius: 10px; font-weight: 700; min-height: 44px;
+}
+.admin-tab.is-active {
+  background: var(--orange-wash); border-color: var(--orange-light); color: var(--orange-deep);
+}
 .admin-list {
   display: grid; gap: 14px;
 }
@@ -960,10 +980,14 @@ input[type='range'] { accent-color: var(--orange); }
 }
 .admin-report--rejected { border-color: rgba(179, 38, 30, 0.35); }
 .admin-report--pending { border-color: rgba(244, 112, 10, 0.35); }
+.admin-report--submitted { border-left: 4px solid var(--orange); }
 .admin-report-head {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
 }
 .admin-meta { color: var(--ink-soft); font-size: 0.8rem; }
+.admin-submission-note {
+  margin: 0; line-height: 1.5; color: var(--ink);
+}
 .status-pill {
   display: inline-flex; align-items: center; justify-content: center; padding: 4px 8px; border-radius: 999px;
   font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
@@ -1007,15 +1031,15 @@ img.tile-base {
   .stage { position: fixed; inset: 0; width: 100%; height: 100%; }
   .rail {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 550;
-    height: 50vh; border-right: none; border-top: 1px solid var(--line);
+    height: 52vh; max-height: 52vh; border-right: none; border-top: 1px solid var(--line);
     transform: translateY(0); transition: transform 280ms cubic-bezier(.2,.7,.3,1);
     animation: none;
   }
-  .app.rail-collapsed .rail { height: 50vh; min-height: 0; overflow: hidden; border-top: none; transform: translateY(100%); }
+  .app.rail-collapsed .rail { height: 52vh; min-height: 0; overflow: hidden; border-top: none; transform: translateY(100%); }
   .timeline { bottom: 12px; padding: 10px 14px; gap: 10px; }
 
   .rail-handle {
-    top: calc(50vh - 30px); left: 50%; bottom: auto;
+    top: calc(52vh - 30px); left: 50%; bottom: auto;
     width: 52px; height: 22px; border-radius: 8px;
     z-index: 1200;
     transform: translate(-50%, -50%);
@@ -1039,10 +1063,10 @@ img.tile-base {
   .admin-user-bar { flex-direction: column; align-items: flex-start; }
   .admin-actions { flex-direction: column; }
   .admin-actions button { width: 100%; }
-  .panel { padding: 18px 14px; }
+  .panel { padding: 18px 14px 0; }
   .sound-modal-actions { flex-direction: column-reverse; }
   .sound-modal-actions button { width: 100%; }
-  .sidebar { gap: 12px; padding: 10px 12px 16px; }
+  .sidebar { gap: 12px; padding: 10px 12px 0; }
   .sidebar > .brand,
   .sidebar > .air-quality-signal,
   .sidebar > .secondary.block,
@@ -1066,6 +1090,15 @@ img.tile-base {
   .row .hint { align-self: center; }
   .incident-row { padding: 12px 10px; gap: 9px; }
   .evidence-preview { min-height: 180px; }
+  .sidebar .panel .primary.block {
+    margin-top: 0;
+  }
+  .notify-tools .admin-button {
+    order: 2;
+  }
+  .bell {
+    order: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
