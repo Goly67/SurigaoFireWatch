@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -160,7 +161,7 @@ export default function AdminPanel({
   const userName = user?.displayName || 'Administrator';
   const userInitial = (user?.displayName || user?.email || 'A').charAt(0).toUpperCase();
 
-  return (
+  return createPortal((
     <div className="admin-overlay" role="presentation" onClick={onClose}>
       <aside
         className={`admin-panel ${panelState.isCompact ? 'admin-panel--compact' : ''}`}
@@ -467,7 +468,7 @@ export default function AdminPanel({
         </div>
       </aside>
     </div>
-  );
+  ), document.body);
 }
 
 /* ---------- icons ---------- */

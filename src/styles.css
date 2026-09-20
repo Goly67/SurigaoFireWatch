@@ -1573,17 +1573,17 @@ img.tile-base {
   /* Admin panel stays above the map and rail as a full mobile modal. */
   .admin-overlay {
     place-items: center;
-    padding: 0;
+    padding: 12px;
     z-index: 10000;
     background: rgba(36, 26, 20, 0.72);
   }
   .admin-panel, .admin-panel--compact {
-    width: 100%; height: 100%;
-    max-height: none;
-    border: none; border-radius: 0;
+    width: 100%;
+    max-height: calc(88vh); max-height: calc(88dvh);
+    border: 1px solid var(--line); border-radius: 18px;
     animation: admin-rise 300ms cubic-bezier(.2,.9,.3,1) both;
   }
-  .admin-panel--compact { height: 100%; max-height: none; }
+  .admin-panel--compact { max-height: calc(72vh); max-height: calc(72dvh); }
   .admin-head { padding: 14px 16px; gap: 12px; }
   .admin-badge { width: 40px; height: 40px; border-radius: 12px; }
   .admin-body { gap: 14px; padding: 14px 16px calc(22px + env(safe-area-inset-bottom, 0px)); }
