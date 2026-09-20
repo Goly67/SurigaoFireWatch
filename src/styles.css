@@ -1200,7 +1200,12 @@ img.tile-base {
   z-index: 2;
 }
 
+.sidebar .brand h1 { color: #fff7f1; }
 .sidebar .brand p { color: rgba(255, 241, 227, 0.72); }
+
+.haze-panel h1 {
+  color: #fff7f1;
+}
 
 /* Glowing seam fusing the dark header into the paper below it — a soft
    ember line rather than a clipped shape, so it survives .brand's
