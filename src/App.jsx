@@ -17,6 +17,8 @@ import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
 import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
+import { enableAlarmSounds, playAdminReportSound } from './lib/alarmAudio.js';
+import { getReportSpamMessage } from './lib/reportGuard.js';
 import {
   subscribeToReports, addReport, usingFirebase,
   subscribeToAirQualitySignals, subscribeToPostApprovals, approveForPost, revokePostApproval,
@@ -46,9 +48,11 @@ export default function App() {
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminAudioReady, setAdminAudioReady] = useState(false);
   const [historicalOverlay, setHistoricalOverlay] = useState(null);
 
   const appRef = useRef(null);
+  const recentAdminReportIdsRef = useRef(new Set());
 
   const haze = useHaze(hazeOn);
 
@@ -78,6 +82,17 @@ export default function App() {
       clearInterval(id);
     };
   }, []);
+
+  useEffect(() => {
+    const nextIds = new Set(reports.map((report) => report.id));
+    const newReportIds = [...nextIds].filter((id) => !recentAdminReportIdsRef.current.has(id));
+    recentAdminReportIdsRef.current = nextIds;
+
+    if (newReportIds.length === 0) return;
+    if (adminOpen && !adminAudioReady) return;
+
+    void playAdminReportSound();
+  }, [reports, adminOpen, adminAudioReady]);
 
   // If this device has already granted location access, keep the private
   // marker current without requiring another button press.
@@ -157,6 +172,12 @@ export default function App() {
   }, []);
 
   function submitReport(report) {
+    const message = getReportSpamMessage(report, reports);
+    if (message) {
+      window.alert(message);
+      return;
+    }
+
     addReport(report);
     setView('list');
     setPendingLocation(null);
@@ -303,6 +324,7 @@ export default function App() {
 
         <NotificationCenter
           incidents={incidents}
+          reports={reports}
           onSelect={(id) => {
             setHazeOn(false);
             setView('list');
@@ -310,7 +332,11 @@ export default function App() {
             setHorizonMinutes(30);
             setRailOpen(true);
           }}
-          onOpenAdmin={() => setAdminOpen(true)}
+          onOpenAdmin={async () => {
+            setAdminOpen(true);
+            const unlocked = await enableAlarmSounds();
+            if (unlocked) setAdminAudioReady(true);
+          }}
         />
 
         {adminOpen && <AdminPanel reports={reports} onClose={() => setAdminOpen(false)} />}

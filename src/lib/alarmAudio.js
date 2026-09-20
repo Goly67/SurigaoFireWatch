@@ -4,6 +4,7 @@ import secondAlarmSound from '../../alarmsounds/2nd.mp3';
 import thirdAlarmSound from '../../alarmsounds/3rd.mp3';
 import fourthAlarmSound from '../../alarmsounds/4th.mp3';
 import fifthAlarmSound from '../../alarmsounds/5th.mp3';
+import incoFireSound from '../../alarmsounds/incoFIre.mp3';
 
 const SOUND_BY_LEVEL = [
   lightWarningSound,
@@ -44,6 +45,23 @@ export async function playAlarmSound(level) {
     return true;
   } catch {
     // Browsers can block autoplay; the caller can ask for a user gesture.
+    return false;
+  }
+}
+
+export async function playAdminReportSound() {
+  if (!soundUnlocked) {
+    const unlocked = await enableAlarmSounds();
+    if (!unlocked) return false;
+  }
+
+  const audio = new Audio(incoFireSound);
+  audio.volume = 1;
+  try {
+    await audio.play();
+    soundUnlocked = true;
+    return true;
+  } catch {
     return false;
   }
 }

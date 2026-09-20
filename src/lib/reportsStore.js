@@ -1,6 +1,7 @@
 import { ref, onValue, set, remove, get } from 'firebase/database';
 import { db, firebaseEnabled } from './firebase.js';
 import { seedReports } from '../data/surigao.js';
+import { canAcceptReport, getReportSpamMessage } from './reportGuard.js';
 
 function withReviewDefaults(report) {
   return {
@@ -54,6 +55,11 @@ export async function addReport(report) {
     reviewedBy: report.reviewedBy ?? null,
     reviewedAt: report.reviewedAt ?? null,
   });
+
+  const reason = getReportSpamMessage(next, memoryReports);
+  if (reason) {
+    throw new Error(reason);
+  }
 
   if (firebaseEnabled) {
     await set(ref(db, `reports/${next.id}`), next);

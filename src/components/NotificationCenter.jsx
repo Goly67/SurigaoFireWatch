@@ -14,7 +14,7 @@ const relative = (minutes) => {
  * derived by diffing against the previous render, not stored anywhere, so a
  * refresh just shows the current state with no backlog to replay.
  */
-export default function NotificationCenter({ incidents, onSelect, onOpenAdmin }) {
+export default function NotificationCenter({ incidents, reports = [], onSelect, onOpenAdmin }) {
   const [open, setOpen] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [soundPrompt, setSoundPrompt] = useState(() => {
@@ -92,6 +92,10 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
   }, [open]);
 
   const activeCount = incidents.filter((i) => i.alarm.level > 0).length;
+  const adminPendingCount = reports.filter((report) => {
+    const status = report?.status ?? 'pending';
+    return status === 'pending';
+  }).length;
 
   async function turnOnSounds() {
     const enabled = await enableAlarmSounds();
@@ -113,12 +117,16 @@ export default function NotificationCenter({ incidents, onSelect, onOpenAdmin })
       <div className="notify-tools">
         <button
           className="admin-button"
-          onClick={onOpenAdmin}
+          onClick={() => {
+            void enableAlarmSounds();
+            onOpenAdmin?.();
+          }}
           type="button"
-          aria-label="Open admin panel"
+          aria-label={`Open admin panel${adminPendingCount > 0 ? ` (${adminPendingCount} pending reports)` : ''}`}
           title="Admin panel"
         >
           <AdminGlyph />
+          {adminPendingCount > 0 && <span className="admin-button-badge">{adminPendingCount}</span>}
         </button>
         <button
           className={`bell ${activeCount > 0 ? 'has-alerts' : ''}`}
