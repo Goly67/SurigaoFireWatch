@@ -527,10 +527,10 @@ const VARIANTS = [
   { rot: 0, speed: 1.0, w: 0.5 },
   { rot: 12, speed: 1.08, w: 0.25 },
 ];
-const RELEASE_SCALE = 0.1;
+const RELEASE_SCALE = 0.18;
 
 function deposit(grid, lat, lon, ageH, mass) {
-  const R = 40 + 4 * ageH; // km
+  const R = 44 + 4 * ageH; // km
   const dilution = (40 / R) ** 2 * Math.exp(-ageH / 48);
   const cosLat = Math.max(Math.cos(lat * RAD), 0.3);
   const dLat = R / 111;
@@ -838,16 +838,15 @@ export function renderSmokeFrames(frames) {
       for (let i = 0; i < SMOKE_W; i++) {
         const v = sampleBilinear(grid, rowLat[j], colLon[i]);
         const o = (j * SMOKE_W + i) * 4;
-        // Keep low CAMS readings visible as a soft atmospheric tint. Region
-        // status still uses LEVELS, but the map should not look empty just
-        // because a real PM2.5 value is below the "light haze" band.
-        if (v < 0.03) continue;
-        const t = clamp(v / 2.2, 0, 1);
-        const edge = clamp((v - 0.03) / (LEVELS[2].min - 0.03), 0, 1);
-        img.data[o] = 150 - 95 * t;
-        img.data[o + 1] = 132 - 88 * t;
-        img.data[o + 2] = 120 - 78 * t;
-        img.data[o + 3] = 255 * (0.12 + edge * 0.3 + Math.pow(t, 0.7) * 0.5);
+        // Make the smoke plume broader and more atmospheric so it reads like a
+        // dense Indonesian haze band instead of a faint wash.
+        if (v < 0.001) continue;
+        const t = clamp(v / 1.6, 0, 1);
+        const edge = clamp((v - 0.001) / (LEVELS[2].min + 0.18), 0, 1);
+        img.data[o] = Math.max(80, 170 - 42 * t);
+        img.data[o + 1] = Math.max(76, 164 - 38 * t);
+        img.data[o + 2] = Math.max(72, 158 - 35 * t);
+        img.data[o + 3] = 255 * (0.22 + edge * 0.42 + Math.pow(t, 0.78) * 0.56);
       }
     }
     ctx.putImageData(img, 0, 0);

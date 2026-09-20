@@ -378,6 +378,7 @@ export default function MapView({
   hazeFocus = null,
   userLocation = null,
   userLocationAccuracy = null,
+  historicalOverlay = null,
 }) {
   const selected = incidents.find((i) => i.id === selectedId);
   const active = selected && selected.alarm.level > 0;
@@ -406,7 +407,43 @@ export default function MapView({
       {selected && <FlyTo location={selected.location} railOpen={railOpen} />}
       <HazeViewport active={hazeMode} />
       <MobilePanelOffset railOpen={railOpen} />
-      {hazeMode && <HazeLayer data={haze} frame={hazeFrame} focus={hazeFocus} />}
+      {hazeMode && (
+        <HazeLayer
+          data={haze}
+          frame={hazeFrame}
+          focus={hazeFocus}
+        />
+      )}
+
+      {historicalOverlay && (
+        <>
+          <Polygon
+            positions={historicalOverlay.spread.polygon}
+            pathOptions={{
+              color: '#DC6207',
+              fillColor: '#DC6207',
+              fillOpacity: 0.24,
+              weight: 2.5,
+              className: 'historical-fire-overlay',
+            }}
+          >
+            <Tooltip sticky>
+              Historical fire spread · {historicalOverlay.spread.headDistanceM.toFixed(0)} m downwind
+            </Tooltip>
+          </Polygon>
+          <Polyline
+            positions={[historicalOverlay.fire, historicalOverlay.direction]}
+            pathOptions={{ color: '#DC6207', weight: 2, dashArray: '6 10' }}
+          />
+          <CircleMarker
+            center={historicalOverlay.fire}
+            radius={8}
+            pathOptions={{ color: '#ffffff', weight: 2, fillColor: '#DC6207', fillOpacity: 1 }}
+          >
+            <Tooltip direction="top">Historical fire ignition</Tooltip>
+          </CircleMarker>
+        </>
+      )}
 
       <LocalLayer
         incidents={incidents}

@@ -1625,3 +1625,74 @@ img.tile-base {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ---------------------------------------------------------------- */
+/* Historical fire playback + satellite check (HistoricalFireView)   */
+/* ---------------------------------------------------------------- */
+
+.historical-fire-view { display: flex; flex-direction: column; gap: 14px; }
+
+.historical-picker { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.historical-map {
+  width: 100%; height: 220px; border-radius: var(--radius);
+  overflow: hidden; border: 1px solid var(--line); box-shadow: var(--ring);
+}
+
+.historical-house-count {
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid var(--orange);
+  border-radius: 999px;
+  box-shadow: 0 3px 12px rgba(220, 98, 7, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orange-deep);
+  font-weight: 800;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+
+.burn-playback {
+  display: flex; align-items: center; gap: 14px;
+  width: 100%; padding: 12px 16px; border-radius: 14px;
+  background: var(--paper); border: 1px solid var(--line);
+}
+
+.wind-readout { margin: 0; }
+
+.historical-facts h3 { margin: 0 0 8px; }
+
+.historical-stats { grid-template-columns: repeat(2, 1fr); }
+
+.historical-caveat {
+  margin: 10px 0 0; padding: 10px 12px; border-radius: 8px;
+  background: var(--orange-wash); border: 1px solid var(--orange-light);
+  color: var(--orange-deep); font-size: 0.82rem; line-height: 1.5;
+}
+
+.satellite-check {
+  padding-top: 14px; border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.satellite-check h3 { margin: 0; font-size: 1rem; }
+
+.firms-key-form { display: flex; flex-direction: column; gap: 8px; }
+.firms-key-row { display: flex; gap: 8px; }
+.firms-key-row input {
+  flex: 1; padding: 9px 11px; border: 1px solid var(--line); border-radius: 8px;
+  background: var(--paper); color: var(--ink); font-size: 0.85rem;
+}
+.firms-key-row button { flex-shrink: 0; }
+
+.firms-status { font-size: 0.88rem; line-height: 1.5; padding: 10px 12px; border-radius: 8px; }
+.firms-status.is-hit { background: var(--orange-wash); border: 1px solid var(--orange-light); color: var(--orange-deep); }
+.firms-status.is-miss { background: var(--paper-warm); border: 1px solid var(--line); color: var(--ink); }
+.firms-status.is-error { background: #FDECEC; border: 1px solid #F3B9B9; color: #9A2C2C; }
+.firms-hotspot-list { margin: 6px 0 0; padding-left: 18px; font-size: 0.8rem; }
+.firms-hotspot-list li { margin-bottom: 3px; }
+
+@media (max-width: 900px) {
+  .historical-map { height: 180px; }
+  .historical-stats { grid-template-columns: 1fr 1fr; }
+}

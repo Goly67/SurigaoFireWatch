@@ -103,6 +103,7 @@ const SORT_MODES = [
 
 export default function Sidebar({
   incidents, wind, selectedId, showStations, onToggleStations, onSelect, onReport, onOpenLevels,
+  onOpenHistory,
   airQualityActive = false,
 }) {
   const [sortMode, setSortMode] = useState('severity');
@@ -262,6 +263,13 @@ export default function Sidebar({
         <span className="icon-warning-levels" aria-hidden="true">!</span>
         How the 5 levels work
       </button>
+
+      {onOpenHistory && (
+        <button className="secondary block levels-btn" onClick={onOpenHistory}>
+          <span className="icon-warning-levels" aria-hidden="true">↻</span>
+          Historical fires &amp; satellite check
+        </button>
+      )}
 
       <section className="coverage">
         <div className="coverage-head">

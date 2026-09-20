@@ -6,13 +6,16 @@ import ReportForm from './components/ReportForm.jsx';
 import IncidentPanel from './components/IncidentPanel.jsx';
 import WarningSystem from './components/WarningSystem.jsx';
 import Timeline from './components/Timeline.jsx';
+import HistoricalFireView from './components/HistoricalFireView.jsx';
 import NotificationCenter from './components/NotificationCenter.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
-import { HazePanel, HazeTimeline, HazeToggle, useHaze } from './components/HazeUI.jsx';
+import {
+  HazePanel, HazeTimeline, HazeToggle, useHaze,
+} from './components/HazeUI.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
-import { distanceMeters } from './lib/geo.js';
+import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
 import {
   subscribeToReports, addReport, usingFirebase,
@@ -30,7 +33,7 @@ export default function App() {
   const [postApprovals, setPostApprovals] = useState({});
   const [wind, setWind] = useState(FALLBACK_WIND);
   const [selectedId, setSelectedId] = useState(null);
-  const [view, setView] = useState('list'); // list | report | levels
+  const [view, setView] = useState('list'); // list | report | levels | historical
   const [pendingLocation, setPendingLocation] = useState(null);
   const [horizonMinutes, setHorizonMinutes] = useState(30);
   const [showStations, setShowStations] = useState(true);
@@ -43,6 +46,7 @@ export default function App() {
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [historicalOverlay, setHistoricalOverlay] = useState(null);
 
   const appRef = useRef(null);
 
@@ -235,6 +239,16 @@ export default function App() {
         onClose={() => setView('list')}
       />
     );
+  } else if (view === 'historical') {
+    rail = (
+      <HistoricalFireView
+        onClose={() => {
+          setView('list');
+          setHistoricalOverlay(null);
+        }}
+        onOverlayChange={setHistoricalOverlay}
+      />
+    );
   } else if (selected) {
     rail = (
       <IncidentPanel
@@ -263,6 +277,7 @@ export default function App() {
           setSelectedId(null);
         }}
         onOpenLevels={() => setView('levels')}
+        onOpenHistory={() => setView('historical')}
       />
     );
   }
@@ -322,6 +337,7 @@ export default function App() {
           hazeFocus={hazeFocus}
           userLocation={userLocation}
           userLocationAccuracy={locationAccuracy}
+          historicalOverlay={view === 'historical' ? historicalOverlay : null}
         />
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}

@@ -341,6 +341,54 @@ export function HazeTimeline({ frame, onChange, baseTime }) {
   );
 }
 
+export const HISTORICAL_FIRE_EVENT = {
+  id: 'nueva-goding-taft-2026-08-12',
+  label: 'Nueva Goding · Barangay Taft',
+  description: 'Documented fire event in Barangay Taft, Surigao City, from 12:00–16:00 on 12 Aug 2026.',
+  start: new Date('2026-08-12T12:00:00+08:00'),
+  center: [9.7852, 125.4907],
+  frames: [
+    { label: '12:00', time: '12:00 PM', radius: 20, strength: 0.2, center: [9.7851, 125.4905] },
+    { label: '13:00', time: '1:00 PM', radius: 34, strength: 0.4, center: [9.7853, 125.4908] },
+    { label: '14:00', time: '2:00 PM', radius: 52, strength: 0.6, center: [9.7854, 125.4911] },
+    { label: '15:00', time: '3:00 PM', radius: 68, strength: 0.8, center: [9.7855, 125.4909] },
+    { label: '16:00', time: '4:00 PM', radius: 82, strength: 1, center: [9.7852, 125.4907] },
+  ],
+};
+
+export function HistoricalFirePlayback({ frame, onChange }) {
+  const max = HISTORICAL_FIRE_EVENT.frames.length - 1;
+  const current = HISTORICAL_FIRE_EVENT.frames[Math.min(frame, max)];
+
+  return (
+    <div className="timeline haze-timeline historical-fire-playback" style={{ '--alarm': '#B3261E' }}>
+      <button
+        className="play"
+        onClick={() => onChange((f) => (f >= max ? 0 : f + 1))}
+        aria-label="Play documented fire playback"
+      >
+        <span className="play-glyph" />
+      </button>
+      <div className="timeline-track">
+        <input
+          type="range" min="0" max={max} step="1" value={Math.min(frame, max)}
+          aria-label="Historical fire playback time"
+          onChange={(e) => onChange(Number(e.target.value))}
+        />
+        <div className="timeline-marks">
+          {HISTORICAL_FIRE_EVENT.frames.map((step) => (
+            <span key={step.label}>{step.label}</span>
+          ))}
+        </div>
+      </div>
+      <span className="haze-readout">
+        <b>{current.label}</b>
+        <small>{current.time}</small>
+      </span>
+    </div>
+  );
+}
+
 /* ----------------------------------------------------------------- panel */
 
 export function HazePanel({ haze, frame, onFocus, userLocation, userInCaraga }) {
