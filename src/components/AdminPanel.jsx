@@ -6,6 +6,7 @@ import {
   signOut,
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
+import { enableAlarmSounds } from '../lib/alarmAudio.js';
 import { deleteReport, setReportStatus, updateReport } from '../lib/reportsStore.js';
 
 const STATUS_LABEL = {
@@ -31,7 +32,7 @@ function readStoredPanelState() {
     if (!saved) return { activeTab: 'queue', isCompact: false };
     const parsed = JSON.parse(saved);
     return {
-      activeTab: parsed.activeTab === 'submitted' ? 'submitted' : 'queue',
+      activeTab: parsed.activeTab === 'submitted' || parsed.activeTab === 'fires' ? parsed.activeTab : 'queue',
       isCompact: Boolean(parsed.isCompact),
     };
   } catch {
@@ -51,7 +52,14 @@ function evidenceEmbedUrl(url) {
     .replace(/\/view\?usp=.*/, '/preview');
 }
 
-export default function AdminPanel({ reports = [], onClose }) {
+export default function AdminPanel({
+  reports = [],
+  incidents = [],
+  incidentStatusMap = {},
+  onUpdateIncidentStatus,
+  onAdminAuthorizationChange,
+  onClose,
+}) {
   const [loginError, setLoginError] = useState('');
   const [user, setUser] = useState(null);
   const [panelState, setPanelState] = useState(readStoredPanelState);
@@ -76,10 +84,12 @@ export default function AdminPanel({ reports = [], onClose }) {
     return onAuthStateChanged(auth, async (nextUser) => {
       if (!nextUser) {
         setUser(null);
+        onAdminAuthorizationChange?.(false);
         return;
       }
 
       if (!isAuthorizedAdmin(nextUser)) {
+        onAdminAuthorizationChange?.(false);
         setLoginError('This Google account is not authorized for admin access.');
         await signOut(auth);
         setUser(null);
@@ -88,8 +98,10 @@ export default function AdminPanel({ reports = [], onClose }) {
 
       setLoginError('');
       setUser(nextUser);
+      await enableAlarmSounds();
+      onAdminAuthorizationChange?.(true);
     });
-  }, []);
+  }, [onAdminAuthorizationChange]);
 
   const queue = useMemo(() => [...reports].sort((a, b) => {
     const statusRank = { pending: 0, approved: 1, rejected: 2 };
@@ -100,6 +112,14 @@ export default function AdminPanel({ reports = [], onClose }) {
   const submittedReports = useMemo(() => [...reports]
     .filter((report) => report && typeof report.id === 'string')
     .sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt)), [reports]);
+
+  const fireControlList = useMemo(() => [...incidents].sort((a, b) => {
+    const aStatus = incidentStatusMap[a.id] ?? 'active';
+    const bStatus = incidentStatusMap[b.id] ?? 'active';
+    const statusRank = { active: 0, under_control: 1, fire_out: 2 };
+    return (statusRank[aStatus] ?? 99) - (statusRank[bStatus] ?? 99)
+      || new Date(b.reportedAt) - new Date(a.reportedAt);
+  }), [incidents, incidentStatusMap]);
 
   const counts = useMemo(() => {
     const totals = { pending: 0, approved: 0, rejected: 0 };
@@ -225,6 +245,16 @@ export default function AdminPanel({ reports = [], onClose }) {
                   Submitted
                   <span className="admin-tab-count">{submittedReports.length}</span>
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={panelState.activeTab === 'fires'}
+                  className={panelState.activeTab === 'fires' ? 'admin-tab is-active' : 'admin-tab'}
+                  onClick={() => setTab('fires')}
+                >
+                  Fires
+                  <span className="admin-tab-count">{fireControlList.length}</span>
+                </button>
               </div>
 
               {panelState.activeTab === 'queue' ? (
@@ -311,7 +341,7 @@ export default function AdminPanel({ reports = [], onClose }) {
                     );
                   })}
                 </div>
-              ) : (
+              ) : panelState.activeTab === 'submitted' ? (
                 <div className="admin-list">
                   {submittedReports.length === 0 && (
                     <div className="admin-empty">
@@ -365,6 +395,63 @@ export default function AdminPanel({ reports = [], onClose }) {
                       </div>
                     </article>
                   ))}
+                </div>
+              ) : (
+                <div className="admin-list">
+                  {fireControlList.length === 0 && (
+                    <div className="admin-empty">
+                      <InboxGlyph />
+                      <strong>No active fires</strong>
+                      <span>Fire control actions will appear here.</span>
+                    </div>
+                  )}
+
+                  {fireControlList.map((incident) => {
+                    const status = incidentStatusMap[incident.id] ?? 'active';
+                    const statusLabel = status === 'under_control' ? 'UC' : status === 'fire_out' ? 'FO' : 'Active';
+                    const statusClass = status === 'under_control' ? 'under-control' : status === 'fire_out' ? 'fire-out' : 'active';
+
+                    return (
+                      <article key={`fire-${incident.id}`} className="admin-report admin-report--submitted">
+                        <div className="admin-report-head">
+                          <div className="admin-report-title">
+                            <strong>{incident.barangayName}</strong>
+                            <p className="admin-meta">
+                              <ClockGlyph />
+                              <span>{formatWhen(incident.reportedAt)}</span>
+                              <span className="admin-source">
+                                {status === 'under_control' ? 'UC' : status === 'fire_out' ? 'FO' : incident.alarm.label}
+                              </span>
+                            </p>
+                          </div>
+                          <span className={`status-pill status-pill--${statusClass}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        <p className="admin-submission-note">
+                          {incident.note || 'No description given.'}
+                        </p>
+
+                        <div className="admin-actions admin-actions--two">
+                          <button
+                            className="admin-action admin-action--approve"
+                            type="button"
+                            onClick={() => onUpdateIncidentStatus?.(incident.id, 'under_control')}
+                          >
+                            <CheckGlyph /> UC
+                          </button>
+                          <button
+                            className="admin-action admin-action--reject"
+                            type="button"
+                            onClick={() => onUpdateIncidentStatus?.(incident.id, 'fire_out')}
+                          >
+                            <CrossGlyph /> FO
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </>

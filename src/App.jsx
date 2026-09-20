@@ -17,8 +17,9 @@ import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
 import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
-import { enableAlarmSounds, playAdminReportSound } from './lib/alarmAudio.js';
+import { playAdminReportSound } from './lib/alarmAudio.js';
 import { getReportSpamMessage } from './lib/reportGuard.js';
+import { readIncidentStatusMap, writeIncidentStatusMap } from './lib/incidentStatusStore.js';
 import {
   subscribeToReports, addReport, usingFirebase,
   subscribeToAirQualitySignals, subscribeToPostApprovals, approveForPost, revokePostApproval,
@@ -48,11 +49,15 @@ export default function App() {
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminAuthorized, setAdminAuthorized] = useState(false);
   const [adminAudioReady, setAdminAudioReady] = useState(false);
+  const [incidentStatusMap, setIncidentStatusMap] = useState(() => readIncidentStatusMap());
   const [historicalOverlay, setHistoricalOverlay] = useState(null);
 
   const appRef = useRef(null);
   const recentAdminReportIdsRef = useRef(new Set());
+  const reportsRef = useRef(reports);
+  reportsRef.current = reports;
 
   const haze = useHaze(hazeOn);
 
@@ -73,9 +78,9 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    fetchWind().then((w) => !cancelled && setWind(w));
+    fetchWind(undefined, true).then((w) => !cancelled && setWind(w));
     const id = setInterval(() => {
-      fetchWind().then((w) => !cancelled && setWind(w));
+      fetchWind(undefined, true).then((w) => !cancelled && setWind(w));
     }, REFRESH_MS);
     return () => {
       cancelled = true;
@@ -84,15 +89,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!adminOpen || !adminAuthorized) return;
+    if (!adminAudioReady) return;
+
     const nextIds = new Set(reports.map((report) => report.id));
     const newReportIds = [...nextIds].filter((id) => !recentAdminReportIdsRef.current.has(id));
     recentAdminReportIdsRef.current = nextIds;
 
-    if (newReportIds.length === 0) return;
-    if (adminOpen && !adminAudioReady) return;
-
-    void playAdminReportSound();
-  }, [reports, adminOpen, adminAudioReady]);
+    if (newReportIds.length > 0) {
+      void playAdminReportSound();
+    }
+  }, [reports, adminOpen, adminAuthorized, adminAudioReady]);
 
   // If this device has already granted location access, keep the private
   // marker current without requiring another button press.
@@ -115,10 +122,20 @@ export default function App() {
     return () => clearInterval(id);
   }, []);
 
-  const incidents = useMemo(
+  const allIncidents = useMemo(
     () => buildIncidents(reports, wind, airQualitySignals, thermalHotspots),
     [reports, wind, airQualitySignals, thermalHotspots, tick]
   );
+  const incidents = useMemo(() => allIncidents.filter((incident) => {
+    const status = incidentStatusMap[incident.id] ?? 'active';
+    return status !== 'fire_out';
+  }), [allIncidents, incidentStatusMap]);
+  const incidentStateMap = useMemo(() => Object.fromEntries(
+    allIncidents.map((incident) => [incident.id, incidentStatusMap[incident.id] ?? 'active'])
+  ), [allIncidents, incidentStatusMap]);
+  const activeIncidents = useMemo(() => incidents.filter((incident) => (
+    (incidentStatusMap[incident.id] ?? 'active') === 'active'
+  )), [incidents, incidentStatusMap]);
   const airQualityActive = airQualitySignals.some((signal) => {
     const detectedAt = new Date(signal.detectedAt).getTime();
     return Number.isFinite(detectedAt) && Date.now() - detectedAt <= 30 * 60 * 1000;
@@ -159,6 +176,29 @@ export default function App() {
   const changeHorizon = useCallback((next) => {
     setHorizonMinutes((prev) => (typeof next === 'function' ? next(prev) : next));
   }, []);
+
+  const updateIncidentStatus = useCallback((incidentId, nextStatus) => {
+    setIncidentStatusMap((current) => {
+      const next = { ...current, [incidentId]: nextStatus };
+      writeIncidentStatusMap(undefined, next);
+      return next;
+    });
+  }, []);
+
+  const handleAdminAuthorizationChange = useCallback((authorized) => {
+    setAdminAuthorized(authorized);
+    if (authorized) {
+      recentAdminReportIdsRef.current = new Set(reportsRef.current.map((report) => report.id));
+      setAdminAudioReady(true);
+    } else {
+      setAdminAudioReady(false);
+      recentAdminReportIdsRef.current = new Set();
+    }
+  }, []);
+
+  useEffect(() => {
+    writeIncidentStatusMap(undefined, incidentStatusMap);
+  }, [incidentStatusMap]);
 
   // Passed down into MapView -> the memoized LocalLayer (see MapView.jsx).
   // An inline arrow here would get a new reference every render — including
@@ -204,7 +244,9 @@ export default function App() {
 
   const reporting = !hazeOn && view === 'report';
   const showHazeTimeline = hazeOn && Boolean(haze.data?.frames);
-  const showSpreadTimeline = !hazeOn && Boolean(selected) && selected.alarm.level > 0 && !reporting;
+  const selectedIsActive = selected
+    && (incidentStatusMap[selected.id] ?? 'active') === 'active';
+  const showSpreadTimeline = !hazeOn && Boolean(selectedIsActive) && selected.alarm.level > 0 && !reporting;
   const timelineVisible = showHazeTimeline || showSpreadTimeline;
   const userInCaraga = userLocation ? isPointInCaraga(userLocation) : false;
 
@@ -274,6 +316,7 @@ export default function App() {
     rail = (
       <IncidentPanel
         incident={selected}
+        incidentState={incidentStatusMap[selected.id] ?? 'active'}
         horizonMinutes={horizonMinutes}
         onBack={() => setSelectedId(null)}
         onOpenLevels={() => setView('levels')}
@@ -286,7 +329,7 @@ export default function App() {
   } else {
     rail = (
       <Sidebar
-        incidents={incidents}
+        incidents={activeIncidents}
         wind={wind}
         selectedId={selectedId}
         showStations={showStations}
@@ -323,7 +366,7 @@ export default function App() {
         <HazeToggle on={hazeOn} onChange={toggleHaze} />
 
         <NotificationCenter
-          incidents={incidents}
+          incidents={activeIncidents}
           reports={reports}
           onSelect={(id) => {
             setHazeOn(false);
@@ -332,14 +375,21 @@ export default function App() {
             setHorizonMinutes(30);
             setRailOpen(true);
           }}
-          onOpenAdmin={async () => {
+          onOpenAdmin={() => {
             setAdminOpen(true);
-            const unlocked = await enableAlarmSounds();
-            if (unlocked) setAdminAudioReady(true);
           }}
         />
 
-        {adminOpen && <AdminPanel reports={reports} onClose={() => setAdminOpen(false)} />}
+        {adminOpen && (
+          <AdminPanel
+            reports={reports}
+            incidents={allIncidents}
+            incidentStatusMap={incidentStatusMap}
+            onUpdateIncidentStatus={updateIncidentStatus}
+            onAdminAuthorizationChange={handleAdminAuthorizationChange}
+            onClose={() => setAdminOpen(false)}
+          />
+        )}
 
         {!usingFirebase && !hazeOn && (
           <div className="db-flag" title="Copy .env.example to .env.local with your Firebase project to go live">
@@ -349,6 +399,7 @@ export default function App() {
 
         <MapView
           incidents={incidents}
+          incidentStateMap={incidentStateMap}
           selectedId={selectedId}
           onSelect={selectIncident}
           placing={reporting}

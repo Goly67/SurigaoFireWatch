@@ -18,10 +18,10 @@ let windRetryAt = 0;
  * Live wind from Open-Meteo (free, no API key). `fromDeg` follows the
  * meteorological convention: the direction the wind is coming FROM.
  */
-export async function fetchWind([lat, lng] = SURIGAO_CENTER) {
-  if (windCache && Date.now() - windCache.cachedAt < WIND_CACHE_MS) return windCache.value;
-  if (windRequest) return windRequest;
-  if (Date.now() < windRetryAt) return windCache?.value ?? FALLBACK_WIND;
+export async function fetchWind([lat, lng] = SURIGAO_CENTER, forceRefresh = false) {
+  if (!forceRefresh && windCache && Date.now() - windCache.cachedAt < WIND_CACHE_MS) return windCache.value;
+  if (windRequest && !forceRefresh) return windRequest;
+  if (!forceRefresh && Date.now() < windRetryAt) return windCache?.value ?? FALLBACK_WIND;
   const url =
     'https://api.open-meteo.com/v1/forecast' +
     `?latitude=${lat}&longitude=${lng}` +

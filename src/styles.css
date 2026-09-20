@@ -1117,6 +1117,9 @@ input[type='range'] { accent-color: var(--orange); }
 .status-pill--pending { background: rgba(244, 112, 10, 0.12); color: var(--orange-deep); }
 .status-pill--approved { background: rgba(35, 140, 95, 0.12); color: #127a52; }
 .status-pill--rejected { background: rgba(179, 38, 30, 0.12); color: #B3261E; }
+.status-pill--under-control { background: rgba(47, 108, 255, 0.12); color: #1E53D8; }
+.status-pill--fire-out { background: rgba(35, 140, 95, 0.12); color: #127a52; }
+.status-pill--active { background: rgba(244, 112, 10, 0.12); color: var(--orange-deep); }
 
 .admin-field { display: grid; gap: 6px; }
 .admin-field > span {

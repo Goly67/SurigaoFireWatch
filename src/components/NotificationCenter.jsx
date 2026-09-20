@@ -24,6 +24,7 @@ export default function NotificationCenter({ incidents, reports = [], onSelect, 
   const pendingSoundRef = useRef(null);
   const prevRef = useRef(new Map());
   const initializedRef = useRef(false);
+  const lastPlayedAlarmRef = useRef(0);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -42,21 +43,28 @@ export default function NotificationCenter({ incidents, reports = [], onSelect, 
     }
 
     prevRef.current = next;
+    const activeIds = new Set(incidents.map((incident) => incident.id));
+    setToasts((current) => current.filter((toast) => activeIds.has(toast.incident.id)));
     const isInitialSnapshot = !initializedRef.current;
     initializedRef.current = true;
     if (fresh.length === 0) return;
 
-    // One sound per new fire or escalation. React re-renders do not replay it
-    // because the previous alarm levels are retained in prevRef.
+    // Only the highest active alarm should win. If a fire is already sounding
+    // at a higher level, lower-level incidents must not override it.
     if (!isInitialSnapshot) {
-      fresh.forEach(({ incident }) => {
-        playAlarmSound(incident.alarm.level).then((played) => {
+      const activePeakLevel = incidents.reduce((max, incident) => Math.max(max, incident.alarm.level), 0);
+      if (activePeakLevel > 0 && activePeakLevel !== lastPlayedAlarmRef.current) {
+        lastPlayedAlarmRef.current = activePeakLevel;
+        playAlarmSound(activePeakLevel).then((played) => {
           if (!played) {
-            pendingSoundRef.current = incident.alarm.level;
+            pendingSoundRef.current = activePeakLevel;
             setSoundPrompt(true);
           }
         });
-      });
+      }
+      if (activePeakLevel === 0) {
+        lastPlayedAlarmRef.current = 0;
+      }
     }
 
     setToasts((current) => [
@@ -118,7 +126,6 @@ export default function NotificationCenter({ incidents, reports = [], onSelect, 
         <button
           className="admin-button"
           onClick={() => {
-            void enableAlarmSounds();
             onOpenAdmin?.();
           }}
           type="button"

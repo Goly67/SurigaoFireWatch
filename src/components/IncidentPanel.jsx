@@ -1,6 +1,6 @@
 import { composePost } from '../lib/verification.js';
 import { projectSpread } from '../lib/fireSpread.js';
-import { ALARM_LEVELS } from '../lib/alarmLevels.js';
+import { ALARM_LEVELS, nextReportThreshold } from '../lib/alarmLevels.js';
 
 function driveFileId(url) {
   return url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?.*id=)([\w-]+)/i)?.[1] ?? null;
@@ -33,15 +33,16 @@ const relative = (minutes) => {
 
 export default function IncidentPanel({
   incident, horizonMinutes, onBack, onOpenLevels,
-  postApproval, onApprovePost, onRevokePost, onReportFire,
+  incidentState = 'active', postApproval, onApprovePost, onRevokePost, onReportFire,
 }) {
   const thirty = incident.projections.find((p) => p.minutes === 30);
   const scrubbed = projectSpread({ ...incident.spreadParams, minutes: horizonMinutes });
   const held = incident.alarm.level === 0;
+  const underControl = incidentState === 'under_control';
   const post = incident.triage.autoPost ? composePost(incident, incident.alarm) : null;
   const evidenceLinks = incident.reports.filter((r) => r.driveUrl);
   const reportsNeeded = Math.max(0, ALARM_LEVELS[0].minReports - incident.reports.length);
-  const nextReportAlarm = ALARM_LEVELS.find((level) => incident.reports.length < level.minReports);
+  const nextReportAlarm = nextReportThreshold(incident.alarm.level, incident.reports.length);
   const nextReportsNeeded = nextReportAlarm
     ? nextReportAlarm.minReports - incident.reports.length
     : 0;
@@ -57,15 +58,15 @@ export default function IncidentPanel({
         </button>
       </div>
 
-      <div className={`alarm-head ${held ? 'is-held' : ''}`} style={{ '--alarm': incident.alarm.color }}>
-        <span className="alarm-code">{incident.alarm.code}</span>
+      <div className={`alarm-head ${held ? 'is-held' : ''}`} style={{ '--alarm': underControl ? '#2F6CFF' : incident.alarm.color }}>
+        <span className="alarm-code">{underControl ? 'UC' : incident.alarm.code}</span>
         <div>
-          <h2>{incident.alarm.label}</h2>
+          <h2>{underControl ? 'Under control' : incident.alarm.label}</h2>
           <p>{incident.barangayName} · {relative(incident.minutesElapsed)}</p>
         </div>
       </div>
 
-      <p className="alarm-summary">{incident.alarm.summary}</p>
+      <p className="alarm-summary">{underControl ? 'Fire is under control. No active fire alarm.' : incident.alarm.summary}</p>
       <p className="incident-note">{incident.note}</p>
       <p className="report-count">
         PERSON {incident.reports.length} REPORTED THIS FIRE
@@ -86,7 +87,9 @@ export default function IncidentPanel({
         </div>
       )}
 
-      {held ? (
+      {underControl ? (
+        <p className="muted small">Under control. The active fire alarm and spread projection are paused.</p>
+      ) : held ? (
         <p className="muted small">
           Not dispatched. {reportsNeeded} more report{reportsNeeded === 1 ? '' : 's'} within
           200 m in the next ten minutes promote{reportsNeeded === 1 ? 's' : ''} this to a
@@ -158,34 +161,6 @@ export default function IncidentPanel({
             <p className="muted small">{incident.alarm.respondingUnits} under this level.</p>
           </section>
         </>
-      )}
-
-      {post && (
-        <section>
-          <h3>{postApproval ? 'Approved for Facebook' : 'Eligible for Facebook — needs approval'}</h3>
-          <pre className="post-preview">{post}</pre>
-          {postApproval ? (
-            <>
-              <p className="muted small">
-                {postApproval.by === 'auto-corroborated'
-                  ? `Auto-approved ${relative((Date.now() - new Date(postApproval.approvedAt)) / 60000)} — 2+ independent reports already confirmed this one, so it didn't need to wait on anyone.`
-                  : `Approved by an admin ${relative((Date.now() - new Date(postApproval.approvedAt)) / 60000)}.`}
-                {' '}The posting job publishes approved incidents on its next run —
-                nothing posts straight from this screen.
-              </p>
-              <button className="ghost" onClick={onRevokePost}>Undo approval</button>
-            </>
-          ) : (
-            <>
-              <p className="muted small">
-                This is a single, uncorroborated report — nothing goes to the public
-                Page until someone confirms it. If a second independent report comes
-                in for the same fire, it'll approve itself automatically.
-              </p>
-              <button className="primary" onClick={onApprovePost}>Approve to publish</button>
-            </>
-          )}
-        </section>
       )}
 
       <section className="report-fire-cta">

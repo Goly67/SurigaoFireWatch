@@ -43,7 +43,7 @@ export const ALARM_LEVELS = [
     summary:
       'Called when the first team finds the fire is too big for them alone. Doubles the number of workers and adds support gear.',
     minStructures: 12,
-    minReports: 25,
+    minReports: 15,
     units: 8,
     color: '#F0922B',
     tint: '#FFECD5',
@@ -121,12 +121,22 @@ export function alarmForReports(count) {
   return match;
 }
 
+export function nextReportThreshold(currentLevel, reportCount) {
+  if (!Number.isFinite(currentLevel) || !Number.isFinite(reportCount)) {
+    return null;
+  }
+
+  return ALARM_LEVELS.find((step) => (
+    step.level > currentLevel && reportCount < step.minReports
+  )) ?? null;
+}
+
 /**
  * Final level for an incident.
  *
- * Independent reports are evidence the fire is already past what one photo
- * shows, so three or more raises it a step and six or more raises it again.
- * Time on the clock does the same. None of it waits on a person.
+ * The spread model can describe how large a fire may become, but it cannot
+ * independently assign a higher alarm. Report count is the operational
+ * ceiling: 5, 15, 35, 45, and 50 reports permit alarms 1 through 5.
  */
 export function classifyAlarm({
   estimatedStructures,
@@ -145,13 +155,9 @@ export function classifyAlarm({
 
   const base = alarmForStructures(estimatedStructures);
   const reportBase = alarmForReports(corroboration);
-  let level = Math.max(base.level, reportBase?.level ?? 0);
-
-  if (corroboration >= 3) level += 1;
-  if (corroboration >= 6) level += 1;
-  if (minutesElapsed >= 45) level += 1;
-
-  const capped = Math.min(level, ALARM_LEVELS.length);
+  const reportCeiling = reportBase?.level ?? 1;
+  const modelLevel = Math.max(base.level, 1);
+  const capped = Math.min(modelLevel, reportCeiling, ALARM_LEVELS.length);
   const step = ALARM_LEVELS[capped - 1];
 
   return {

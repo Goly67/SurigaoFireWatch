@@ -20,19 +20,24 @@ const flameSvg = `
   <path class="flame-inner" d="M12 12c0 3-3 4-3 7a3.2 3.2 0 0 0 6.4 0c0-3-2.2-4-3.4-7z"/>
 </svg>`;
 
-function incidentIcon(incident, isSelected) {
+function incidentIcon(incident, isSelected, incidentState = 'active') {
   const held = incident.alarm.level === 0;
+  const underControl = incidentState === 'under_control';
+  const alarmColor = underControl ? '#2F6CFF' : incident.alarm.color;
+  const badgeCode = underControl ? 'UC' : incident.alarm.code;
+  const showFire = !held && !underControl;
+
   return L.divIcon({
     className: 'pin-wrap',
     html: `
       <span class="fire-pin ${held ? 'is-light' : ''} ${isSelected ? 'is-selected' : ''}"
-            style="--alarm:${incident.alarm.color}">
+            style="--alarm:${alarmColor}">
         <span class="fire-ring"></span>
         <span class="fire-ring delay"></span>
         <span class="fire-glow"></span>
-        <span class="fire-flame">${held ? '' : flameSvg}</span>
+        <span class="fire-flame">${showFire ? flameSvg : ''}</span>
         ${held ? '<span class="fire-smoke-dot"></span>' : ''}
-        <span class="fire-code">${incident.alarm.code}</span>
+        <span class="fire-code">${badgeCode}</span>
       </span>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
@@ -235,7 +240,7 @@ function ResizeOnPanelToggle({ trigger }) {
  * That icon churn, not the smoke cross-fade, was what read as "laggy".
  */
 const LocalLayer = memo(function LocalLayer({
-  incidents, selectedId, onSelect, showStations, selected, active, live, horizonMinutes, pendingLocation,
+  incidents, incidentStateMap = {}, selectedId, onSelect, showStations, selected, active, live, horizonMinutes, pendingLocation,
 }) {
   return (
     <>
@@ -333,7 +338,7 @@ const LocalLayer = memo(function LocalLayer({
         <Marker
           key={incident.id}
           position={incident.location}
-          icon={incidentIcon(incident, incident.id === selectedId)}
+          icon={incidentIcon(incident, incident.id === selectedId, incidentStateMap[incident.id] ?? 'active')}
           eventHandlers={{ click: () => onSelect(incident.id) }}
           // Leaflet stacks icon markers by screen y-position, not
           // importance, so a station badge, the wind plume, or even a
@@ -364,6 +369,7 @@ const LocalLayer = memo(function LocalLayer({
 
 export default function MapView({
   incidents,
+  incidentStateMap = {},
   selectedId,
   onSelect,
   placing,
@@ -381,7 +387,8 @@ export default function MapView({
   historicalOverlay = null,
 }) {
   const selected = incidents.find((i) => i.id === selectedId);
-  const active = selected && selected.alarm.level > 0;
+  const selectedState = selected ? incidentStateMap[selected.id] ?? 'active' : 'active';
+  const active = selectedState === 'active' && selected && selected.alarm.level > 0;
 
   const live = useMemo(
     () => (active ? projectSpread({ ...selected.spreadParams, minutes: horizonMinutes }) : null),
@@ -459,6 +466,7 @@ export default function MapView({
 
       <LocalLayer
         incidents={incidents}
+        incidentStateMap={incidentStateMap}
         selectedId={selectedId}
         onSelect={onSelect}
         showStations={showStations}
