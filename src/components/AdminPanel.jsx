@@ -17,6 +17,8 @@ const STATUS_LABEL = {
 const ADMIN_EMAILS = ['forestparty223@gmail.com'];
 const ADMIN_STORAGE_KEY = 'sfw-admin-panel-state-v1';
 
+const statusOf = (report) => report.status ?? 'approved';
+
 function isAuthorizedAdmin(user) {
   return !!user && typeof user.email === 'string' && ADMIN_EMAILS.includes(user.email.toLowerCase());
 }
@@ -37,6 +39,18 @@ function readStoredPanelState() {
   }
 }
 
+function formatWhen(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Unknown time';
+  return date.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+function evidenceEmbedUrl(url) {
+  return url
+    .replace('https://drive.google.com/open?id=', 'https://drive.google.com/file/d/')
+    .replace(/\/view\?usp=.*/, '/preview');
+}
+
 export default function AdminPanel({ reports = [], onClose }) {
   const [loginError, setLoginError] = useState('');
   const [user, setUser] = useState(null);
@@ -47,6 +61,14 @@ export default function AdminPanel({ reports = [], onClose }) {
       window.localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify(panelState));
     }
   }, [panelState]);
+
+  useEffect(() => {
+    function onKey(event) {
+      if (event.key === 'Escape') onClose?.();
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
 
   useEffect(() => {
     if (!auth) return undefined;
@@ -71,13 +93,22 @@ export default function AdminPanel({ reports = [], onClose }) {
 
   const queue = useMemo(() => [...reports].sort((a, b) => {
     const statusRank = { pending: 0, approved: 1, rejected: 2 };
-    return (statusRank[a.status ?? 'approved'] ?? 99) - (statusRank[b.status ?? 'approved'] ?? 99)
+    return (statusRank[statusOf(a)] ?? 99) - (statusRank[statusOf(b)] ?? 99)
       || new Date(b.reportedAt) - new Date(a.reportedAt);
   }), [reports]);
 
   const submittedReports = useMemo(() => [...reports]
     .filter((report) => report && typeof report.id === 'string')
     .sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt)), [reports]);
+
+  const counts = useMemo(() => {
+    const totals = { pending: 0, approved: 0, rejected: 0 };
+    reports.forEach((report) => {
+      const status = statusOf(report);
+      if (status in totals) totals[status] += 1;
+    });
+    return totals;
+  }, [reports]);
 
   async function handleGoogleLogin() {
     if (!auth) {
@@ -103,139 +134,352 @@ export default function AdminPanel({ reports = [], onClose }) {
     setPanelState((current) => ({ ...current, isCompact: !current.isCompact }));
   };
 
+  const setTab = (activeTab) => setPanelState((current) => ({ ...current, activeTab }));
+
+  const userName = user?.displayName || 'Administrator';
+  const userInitial = (user?.displayName || user?.email || 'A').charAt(0).toUpperCase();
+
   return (
     <div className="admin-overlay" role="presentation" onClick={onClose}>
-      <aside className={`admin-panel ${panelState.isCompact ? 'admin-panel--compact' : ''}`} role="dialog" aria-modal="true" aria-label="Admin panel" onClick={(event) => event.stopPropagation()}>
-        <div className="admin-head">
-          <div>
+      <aside
+        className={`admin-panel ${panelState.isCompact ? 'admin-panel--compact' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Admin panel"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header className="admin-head">
+          <span className="admin-badge" aria-hidden="true"><ShieldGlyph /></span>
+          <div className="admin-head-title">
             <p className="admin-kicker">Admin access</p>
             <h2>Fire review panel</h2>
           </div>
           <div className="admin-head-tools">
-            <button className="secondary small-button" type="button" onClick={toggleCompact}>
-              {panelState.isCompact ? 'Expand' : 'Compact'}
+            <button className="admin-chip-button" type="button" onClick={toggleCompact}>
+              <CompactGlyph collapsed={panelState.isCompact} />
+              <span>{panelState.isCompact ? 'Expand' : 'Compact'}</span>
             </button>
-            <button className="icon-button" onClick={onClose} aria-label="Close admin panel" title="Close admin panel">
-              <span className="icon-close" aria-hidden="true" />
-            </button>
-          </div>
-        </div>
-
-        {!user ? (
-          <div className="admin-login">
-            <p className="muted">Use your Google account to access the admin tools.</p>
-            {loginError && <p className="admin-error">{loginError}</p>}
-            <button className="primary block" type="button" onClick={handleGoogleLogin}>
-              Continue with Google
+            <button className="admin-close" type="button" onClick={onClose} aria-label="Close admin panel" title="Close admin panel">
+              <CloseGlyph />
             </button>
           </div>
-        ) : (
-          <>
-            <div className="admin-user-bar">
-              <span>Signed in as {user.email}</span>
-              <button className="secondary" onClick={handleSignOut}>Sign out</button>
-            </div>
+        </header>
 
-            <div className="admin-tabs" role="tablist" aria-label="Admin sections">
-              <button
-                type="button"
-                className={panelState.activeTab === 'queue' ? 'admin-tab is-active' : 'admin-tab'}
-                onClick={() => setPanelState((current) => ({ ...current, activeTab: 'queue' }))}
-              >
-                Review queue ({queue.filter((report) => (report.status ?? 'pending') === 'pending').length})
+        <div className="admin-body">
+          {!user ? (
+            <div className="admin-login">
+              <span className="admin-login-icon" aria-hidden="true"><ShieldGlyph /></span>
+              <h3>Sign in to continue</h3>
+              <p className="muted">Use an authorized Google account to review and moderate fire reports.</p>
+              {loginError && (
+                <p className="admin-error" role="alert">
+                  <AlertGlyph />
+                  <span>{loginError}</span>
+                </p>
+              )}
+              <button className="admin-google" type="button" onClick={handleGoogleLogin}>
+                <GoogleLogo />
+                Continue with Google
               </button>
-              <button
-                type="button"
-                className={panelState.activeTab === 'submitted' ? 'admin-tab is-active' : 'admin-tab'}
-                onClick={() => setPanelState((current) => ({ ...current, activeTab: 'submitted' }))}
-              >
-                Submitted ({submittedReports.length})
-              </button>
+              <p className="admin-footnote">Only approved admin emails can sign in.</p>
             </div>
+          ) : (
+            <>
+              <div className="admin-user-bar">
+                <span className="admin-avatar" aria-hidden="true">
+                  {user.photoURL
+                    ? <img src={user.photoURL} alt="" referrerPolicy="no-referrer" />
+                    : userInitial}
+                </span>
+                <div className="admin-user-text">
+                  <strong>{userName}</strong>
+                  <span>{user.email}</span>
+                </div>
+                <button className="admin-signout" type="button" onClick={handleSignOut}>Sign out</button>
+              </div>
 
-            {panelState.activeTab === 'queue' ? (
-              <div className="admin-list">
-                {queue.length === 0 && <p className="muted small">No reports in the queue.</p>}
+              <div className="admin-stats">
+                <div className="admin-stat admin-stat--pending"><b>{counts.pending}</b><span>Pending</span></div>
+                <div className="admin-stat admin-stat--approved"><b>{counts.approved}</b><span>Approved</span></div>
+                <div className="admin-stat admin-stat--rejected"><b>{counts.rejected}</b><span>Rejected</span></div>
+              </div>
 
-                {queue.map((report) => (
-                  <article key={report.id} className={`admin-report admin-report--${report.status ?? 'approved'}`}>
-                    <div className="admin-report-head">
-                      <strong>{report.barangayId ?? 'Someone reported a fire'}</strong>
-                      <span className={`status-pill status-pill--${report.status ?? 'approved'}`}>
-                        {STATUS_LABEL[report.status ?? 'approved']}
-                      </span>
+              <div className="admin-tabs" role="tablist" aria-label="Admin sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={panelState.activeTab === 'queue'}
+                  className={panelState.activeTab === 'queue' ? 'admin-tab is-active' : 'admin-tab'}
+                  onClick={() => setTab('queue')}
+                >
+                  Review queue
+                  <span className="admin-tab-count">{counts.pending}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={panelState.activeTab === 'submitted'}
+                  className={panelState.activeTab === 'submitted' ? 'admin-tab is-active' : 'admin-tab'}
+                  onClick={() => setTab('submitted')}
+                >
+                  Submitted
+                  <span className="admin-tab-count">{submittedReports.length}</span>
+                </button>
+              </div>
+
+              {panelState.activeTab === 'queue' ? (
+                <div className="admin-list">
+                  {queue.length === 0 && (
+                    <div className="admin-empty">
+                      <InboxGlyph />
+                      <strong>Queue is clear</strong>
+                      <span>No reports are waiting for review.</span>
                     </div>
+                  )}
 
-                    <p className="admin-meta">{new Date(report.reportedAt).toLocaleString()} · {report.source}</p>
+                  {queue.map((report) => {
+                    const status = statusOf(report);
+                    return (
+                      <article key={report.id} className={`admin-report admin-report--${status}`}>
+                        <div className="admin-report-head">
+                          <div className="admin-report-title">
+                            <strong>{report.barangayId ?? 'Someone reported a fire'}</strong>
+                            <p className="admin-meta">
+                              <ClockGlyph />
+                              <span>{formatWhen(report.reportedAt)}</span>
+                              {report.source && <span className="admin-source">{report.source}</span>}
+                            </p>
+                          </div>
+                          <span className={`status-pill status-pill--${status}`}>{STATUS_LABEL[status]}</span>
+                        </div>
 
-                    <label>
-                      Notes
-                      <textarea
-                        value={report.note ?? ''}
-                        onChange={(event) => updateReport(report.id, { note: event.target.value })}
-                      />
-                    </label>
+                        <label className="admin-field">
+                          <span>Notes</span>
+                          <textarea
+                            value={report.note ?? ''}
+                            placeholder="Add a note about this report…"
+                            onChange={(event) => updateReport(report.id, { note: event.target.value })}
+                          />
+                        </label>
 
-                    <label>
-                      Google Drive / Google Photos link
-                      <input
-                        type="url"
-                        value={report.driveUrl ?? ''}
-                        onChange={(event) => updateReport(report.id, { driveUrl: event.target.value || null })}
-                      />
-                    </label>
+                        <label className="admin-field">
+                          <span>Google Drive / Google Photos link</span>
+                          <input
+                            type="url"
+                            value={report.driveUrl ?? ''}
+                            placeholder="https://drive.google.com/…"
+                            onChange={(event) => updateReport(report.id, { driveUrl: event.target.value || null })}
+                          />
+                        </label>
 
-                    {report.driveUrl && (
-                      <div className="admin-evidence">
-                        <iframe
-                          src={report.driveUrl.replace('https://drive.google.com/open?id=', 'https://drive.google.com/file/d/').replace(/\/view\?usp=.*/, '/preview')}
-                          title={`Evidence for ${report.id}`}
-                          allow="autoplay"
-                        />
+                        {report.driveUrl && (
+                          <div className="admin-evidence">
+                            <iframe
+                              src={evidenceEmbedUrl(report.driveUrl)}
+                              title={`Evidence for ${report.id}`}
+                              allow="autoplay"
+                            />
+                          </div>
+                        )}
+
+                        <div className="admin-actions">
+                          <button
+                            className="admin-action admin-action--approve"
+                            type="button"
+                            onClick={() => setReportStatus(report.id, 'approved', user.email)}
+                          >
+                            <CheckGlyph /> Approve
+                          </button>
+                          <button
+                            className="admin-action admin-action--reject"
+                            type="button"
+                            onClick={() => setReportStatus(report.id, 'rejected', user.email)}
+                          >
+                            <CrossGlyph /> Reject
+                          </button>
+                          <button
+                            className="admin-action admin-action--delete"
+                            type="button"
+                            onClick={() => deleteReport(report.id)}
+                            aria-label="Delete report"
+                            title="Delete report"
+                          >
+                            <TrashGlyph /> <span>Delete</span>
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="admin-list">
+                  {submittedReports.length === 0 && (
+                    <div className="admin-empty">
+                      <InboxGlyph />
+                      <strong>Nothing submitted yet</strong>
+                      <span>Public fire reports will show up here.</span>
+                    </div>
+                  )}
+
+                  {submittedReports.map((report) => (
+                    <article key={`submitted-${report.id}`} className="admin-report admin-report--submitted">
+                      <div className="admin-report-head">
+                        <div className="admin-report-title">
+                          <strong>Someone reported a fire</strong>
+                          <p className="admin-meta">
+                            <ClockGlyph />
+                            <span>{formatWhen(report.reportedAt)}</span>
+                            {report.source && <span className="admin-source">{report.source}</span>}
+                          </p>
+                        </div>
+                        <span className={`status-pill status-pill--${report.status ?? 'pending'}`}>
+                          {report.status ? STATUS_LABEL[report.status] : 'New'}
+                        </span>
                       </div>
-                    )}
 
-                    <div className="admin-actions">
-                      <button className="primary" onClick={() => setReportStatus(report.id, 'approved', user.email)}>Approve</button>
-                      <button className="secondary" onClick={() => setReportStatus(report.id, 'rejected', user.email)}>Reject</button>
-                      <button className="ghost danger" onClick={() => deleteReport(report.id)}>Delete</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="admin-list">
-                {submittedReports.length === 0 && <p className="muted small">No public reports submitted yet.</p>}
+                      <p className="admin-submission-note">
+                        {report.note || 'A community member reported a potential fire in the area.'}
+                      </p>
 
-                {submittedReports.map((report) => (
-                  <article key={`submitted-${report.id}`} className="admin-report admin-report--submitted">
-                    <div className="admin-report-head">
-                      <strong>Someone reported a fire</strong>
-                      <span className={`status-pill status-pill--${report.status ?? 'pending'}`}>
-                        {report.status ? STATUS_LABEL[report.status] : 'New'}
-                      </span>
-                    </div>
+                      {report.driveUrl && (
+                        <a href={report.driveUrl} target="_blank" rel="noreferrer" className="evidence-chip">
+                          <LinkGlyph /> View evidence
+                        </a>
+                      )}
 
-                    <p className="admin-meta">{new Date(report.reportedAt).toLocaleString()} · {report.source}</p>
-                    <p className="admin-submission-note">{report.note || 'A community member reported a potential fire in the area.'}</p>
-
-                    {report.driveUrl && (
-                      <a href={report.driveUrl} target="_blank" rel="noreferrer" className="evidence-chip">
-                        View evidence
-                      </a>
-                    )}
-
-                    <div className="admin-actions">
-                      <button className="primary" onClick={() => setReportStatus(report.id, 'approved', user.email)}>Approve</button>
-                      <button className="secondary" onClick={() => setReportStatus(report.id, 'rejected', user.email)}>Reject</button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </>
-        )}
+                      <div className="admin-actions admin-actions--two">
+                        <button
+                          className="admin-action admin-action--approve"
+                          type="button"
+                          onClick={() => setReportStatus(report.id, 'approved', user.email)}
+                        >
+                          <CheckGlyph /> Approve
+                        </button>
+                        <button
+                          className="admin-action admin-action--reject"
+                          type="button"
+                          onClick={() => setReportStatus(report.id, 'rejected', user.email)}
+                        >
+                          <CrossGlyph /> Reject
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </aside>
     </div>
+  );
+}
+
+/* ---------- icons ---------- */
+
+const svgProps = {
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 2,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+};
+
+function ShieldGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M12 3 4.5 6v5.5c0 4.6 3.1 8.3 7.5 9.5 4.4-1.2 7.5-4.9 7.5-9.5V6L12 3z" />
+      <path d="m8.8 12.2 2.3 2.3 4.2-4.6" />
+    </svg>
+  );
+}
+
+function CloseGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function CompactGlyph({ collapsed }) {
+  return (
+    <svg {...svgProps}>
+      {collapsed
+        ? <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+        : <path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" />}
+    </svg>
+  );
+}
+
+function ClockGlyph() {
+  return (
+    <svg {...svgProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
+function CheckGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="m5 12.5 4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+function CrossGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M6 6l12 12M18 6 6 18" />
+    </svg>
+  );
+}
+
+function TrashGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 1.8h6a2 2 0 0 0 2-1.8l1-12M9 7V4.5h6V7" />
+    </svg>
+  );
+}
+
+function LinkGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </svg>
+  );
+}
+
+function InboxGlyph() {
+  return (
+    <svg {...svgProps}>
+      <path d="M4 13.5 6.5 5.5h11l2.5 8v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-5z" />
+      <path d="M4 13.5h4.5l1 2.5h5l1-2.5H20" />
+    </svg>
+  );
+}
+
+function AlertGlyph() {
+  return (
+    <svg {...svgProps}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7.5v5.5M12 16.5v.01" />
+    </svg>
+  );
+}
+
+function GoogleLogo() {
+  return (
+    <svg viewBox="0 0 48 48" aria-hidden="true">
+      <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z" />
+      <path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.5 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.9-6.1z" />
+      <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z" />
+    </svg>
   );
 }
