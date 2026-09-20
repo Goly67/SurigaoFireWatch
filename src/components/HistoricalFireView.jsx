@@ -260,8 +260,6 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
     });
   }, [fire, spread, onOverlayChange]);
 
-  const ghostMinutes = Array.from({ length: GHOST_STEPS }, (_, i) => (total * (i + 1)) / GHOST_STEPS);
-
   return (
     <div className="panel historical-fire-view">
       <div className="panel-head">
@@ -295,20 +293,6 @@ export default function HistoricalFireView({ onClose, onOverlayChange }) {
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
             maxZoom={19}
           />
-          {ghostMinutes.map((m) => {
-            if (!wind) return null;
-            const ghost = projectSpread({
-              origin: fire.location, windFromDeg: wind.fromDeg, windKmh: wind.speedKmh,
-              humidity: wind.humidity, fuel: fire.fuel, minutes: m,
-            });
-            return (
-              <Polygon
-                key={m}
-                positions={ghost.polygon}
-                pathOptions={{ color: '#DC6207', fill: false, weight: 1, opacity: 0.3, dashArray: '2 7' }}
-              />
-            );
-          })}
           {spread && (
             <>
               <Polygon
