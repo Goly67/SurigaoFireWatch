@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import {
+  GoogleAuthProvider,
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+} from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { deleteReport, setReportStatus, updateReport } from '../lib/reportsStore.js';
 
@@ -10,8 +15,6 @@ const STATUS_LABEL = {
 };
 
 export default function AdminPanel({ reports = [], onClose }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
   const [user, setUser] = useState(null);
 
@@ -26,18 +29,18 @@ export default function AdminPanel({ reports = [], onClose }) {
       || new Date(b.reportedAt) - new Date(a.reportedAt);
   }), [reports]);
 
-  async function handleLogin(event) {
-    event.preventDefault();
+  async function handleGoogleLogin() {
     if (!auth) {
       setLoginError('Firebase Auth is not configured yet. Add the Firebase Auth values to .env.local.');
       return;
     }
+
     try {
       setLoginError('');
-      await signInWithEmailAndPassword(auth, email.trim(), password);
-      setPassword('');
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
     } catch (error) {
-      setLoginError(error.message || 'Unable to sign in.');
+      setLoginError(error.message || 'Unable to sign in with Google.');
     }
   }
 
@@ -60,18 +63,13 @@ export default function AdminPanel({ reports = [], onClose }) {
         </div>
 
         {!user ? (
-          <form className="admin-login" onSubmit={handleLogin}>
-            <label>
-              Email
-              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="admin@yourdomain.com" required />
-            </label>
-            <label>
-              Password
-              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter admin password" required />
-            </label>
+          <div className="admin-login">
+            <p className="muted">Use your Google account to access the admin tools.</p>
             {loginError && <p className="admin-error">{loginError}</p>}
-            <button className="primary block" type="submit">Log in to admin panel</button>
-          </form>
+            <button className="primary block" type="button" onClick={handleGoogleLogin}>
+              Continue with Google
+            </button>
+          </div>
         ) : (
           <>
             <div className="admin-user-bar">
