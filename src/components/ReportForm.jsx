@@ -4,14 +4,6 @@ import { resolveBarangay } from '../lib/incidents.js';
 import { distanceMeters } from '../lib/geo.js';
 
 const DRIVE_URL_PATTERN = /^https:\/\/(drive|photos)\.google\.com\//i;
-const DETECTOR_LEVELS = [
-  { value: 0.25, label: 'Light Warning' },
-  { value: 0.5, label: '1st Alarm' },
-  { value: 0.65, label: '2nd Alarm' },
-  { value: 0.8, label: '3rd Alarm' },
-  { value: 0.9, label: '4th Alarm' },
-  { value: 0.98, label: '5th Alarm' },
-];
 
 function driveFileId(url) {
   return url.match(/drive\.google\.com\/(?:file\/d\/|open\?id=|uc\?.*id=)([\w-]+)/i)?.[1] ?? null;
@@ -33,7 +25,6 @@ function driveFileId(url) {
 export default function ReportForm({ location, incidents = [], onPlaceRequest, onSubmit, onCancel, prefill }) {
   const [note, setNote] = useState('');
   const [source, setSource] = useState('crowd');
-  const [confidence, setConfidence] = useState(0.8);
   const [driveUrl, setDriveUrl] = useState('');
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState(null);
@@ -80,7 +71,7 @@ export default function ReportForm({ location, incidents = [], onPlaceRequest, o
       location,
       barangayId: barangay.id,
       source,
-      modelConfidence: Number(confidence),
+      modelConfidence: 0.8,
       note: note.trim() || 'No description given.',
       driveUrl: trimmedUrl || null,
       reportedAt: new Date().toISOString(),
@@ -163,23 +154,6 @@ export default function ReportForm({ location, incidents = [], onPlaceRequest, o
             <option key={key} value={key}>{meta.label}</option>
           ))}
         </select>
-      </div>
-
-      <div className="field">
-        <label htmlFor="confidence">Fire level</label>
-        <select
-          id="confidence"
-          value={confidence}
-          onChange={(e) => setConfidence(Number(e.target.value))}
-        >
-          {DETECTOR_LEVELS.map((level) => (
-            <option key={level.value} value={level.value}>{level.label}</option>
-          ))}
-        </select>
-        <p className="hint">
-          Initial detector estimate. Reports, spread, and time can raise or lower the
-          final alarm level automatically.
-        </p>
       </div>
 
       {error && <p className="error">{error}</p>}

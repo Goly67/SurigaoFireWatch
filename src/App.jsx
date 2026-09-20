@@ -99,7 +99,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!adminOpen || !adminAuthorized) return;
+    if (!adminAuthorized) return;
     if (!adminAudioReady) return;
 
     const nextIds = new Set(reports.map((report) => report.id));
@@ -109,7 +109,7 @@ export default function App() {
     if (newReportIds.length > 0) {
       void playAdminReportSound();
     }
-  }, [reports, adminOpen, adminAuthorized, adminAudioReady]);
+  }, [reports, adminAuthorized, adminAudioReady]);
 
   // If this device has already granted location access, keep the private
   // marker current without requiring another button press.

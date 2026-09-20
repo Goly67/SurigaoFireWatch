@@ -1109,6 +1109,16 @@ input[type='range'] { accent-color: var(--orange); }
 }
 .admin-submission-note { margin: 0; color: var(--ink); font-size: 0.9rem; line-height: 1.55; }
 
+.admin-location-map {
+  height: 150px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper-warm);
+}
+.admin-location-map .leaflet-container { width: 100%; height: 100%; }
+.admin-location-map .leaflet-control-attribution { font-size: 9px; }
+
 .status-pill {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 5px 10px; border-radius: 999px;
@@ -1391,6 +1401,10 @@ img.tile-base {
 .section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .section-head h3 { margin: 0; display: inline-flex; align-items: center; gap: 6px; }
 .section-icon { display: inline-flex; color: var(--orange-deep); flex: none; }
+
+@media (min-width: 901px) {
+  .incident-section > .section-head { margin-bottom: 14px; }
+}
 
 .incident-controls { display: inline-flex; gap: 6px; }
 

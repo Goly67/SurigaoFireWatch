@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet';
 import {
   GoogleAuthProvider,
   onAuthStateChanged,
@@ -33,7 +34,7 @@ function readStoredPanelState() {
     if (!saved) return { activeTab: 'queue', isCompact: false };
     const parsed = JSON.parse(saved);
     return {
-      activeTab: parsed.activeTab === 'submitted' || parsed.activeTab === 'fires' ? parsed.activeTab : 'queue',
+      activeTab: parsed.activeTab === 'fires' ? parsed.activeTab : 'queue',
       isCompact: Boolean(parsed.isCompact),
     };
   } catch {
@@ -51,6 +52,33 @@ function evidenceEmbedUrl(url) {
   return url
     .replace('https://drive.google.com/open?id=', 'https://drive.google.com/file/d/')
     .replace(/\/view\?usp=.*/, '/preview');
+}
+
+function ReportLocationMap({ location }) {
+  if (!Array.isArray(location) || location.length !== 2) return null;
+
+  return (
+    <div className="admin-location-map" aria-label="Reported fire location">
+      <MapContainer
+        center={location}
+        zoom={16}
+        scrollWheelZoom={false}
+        dragging={false}
+        doubleClickZoom={false}
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution="&copy; OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <CircleMarker
+          center={location}
+          radius={9}
+          pathOptions={{ color: '#B3261E', weight: 3, fillColor: '#F4700A', fillOpacity: 0.9 }}
+        />
+      </MapContainer>
+    </div>
+  );
 }
 
 export default function AdminPanel({
@@ -110,10 +138,6 @@ export default function AdminPanel({
     return (statusRank[statusOf(a)] ?? 99) - (statusRank[statusOf(b)] ?? 99)
       || new Date(b.reportedAt) - new Date(a.reportedAt);
   }), [reports]);
-
-  const submittedReports = useMemo(() => [...reports]
-    .filter((report) => report && typeof report.id === 'string')
-    .sort((a, b) => new Date(b.reportedAt) - new Date(a.reportedAt)), [reports]);
 
   const fireControlList = useMemo(() => [...incidents].sort((a, b) => {
     const aStatus = incidentStatusMap[a.id] ?? 'active';
@@ -240,16 +264,6 @@ export default function AdminPanel({
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={panelState.activeTab === 'submitted'}
-                  className={panelState.activeTab === 'submitted' ? 'admin-tab is-active' : 'admin-tab'}
-                  onClick={() => setTab('submitted')}
-                >
-                  Submitted
-                  <span className="admin-tab-count">{submittedReports.length}</span>
-                </button>
-                <button
-                  type="button"
-                  role="tab"
                   aria-selected={panelState.activeTab === 'fires'}
                   className={panelState.activeTab === 'fires' ? 'admin-tab is-active' : 'admin-tab'}
                   onClick={() => setTab('fires')}
@@ -311,6 +325,8 @@ export default function AdminPanel({
                           />
                         </label>
 
+                        <ReportLocationMap location={report.location} />
+
                         {report.driveUrl && (
                           <div className="admin-evidence">
                             <iframe
@@ -349,61 +365,6 @@ export default function AdminPanel({
                       </article>
                     );
                   })}
-                </div>
-              ) : panelState.activeTab === 'submitted' ? (
-                <div className="admin-list">
-                  {submittedReports.length === 0 && (
-                    <div className="admin-empty">
-                      <InboxGlyph />
-                      <strong>Nothing submitted yet</strong>
-                      <span>Public fire reports will show up here.</span>
-                    </div>
-                  )}
-
-                  {submittedReports.map((report) => (
-                    <article key={`submitted-${report.id}`} className="admin-report admin-report--submitted">
-                      <div className="admin-report-head">
-                        <div className="admin-report-title">
-                          <strong>Someone reported a fire</strong>
-                          <p className="admin-meta">
-                            <ClockGlyph />
-                            <span>{formatWhen(report.reportedAt)}</span>
-                            {report.source && <span className="admin-source">{report.source}</span>}
-                          </p>
-                        </div>
-                        <span className={`status-pill status-pill--${report.status ?? 'pending'}`}>
-                          {report.status ? STATUS_LABEL[report.status] : 'New'}
-                        </span>
-                      </div>
-
-                      <p className="admin-submission-note">
-                        {report.note || 'A community member reported a potential fire in the area.'}
-                      </p>
-
-                      {report.driveUrl && (
-                        <a href={report.driveUrl} target="_blank" rel="noreferrer" className="evidence-chip">
-                          <LinkGlyph /> View evidence
-                        </a>
-                      )}
-
-                      <div className="admin-actions admin-actions--two">
-                        <button
-                          className="admin-action admin-action--approve"
-                          type="button"
-                          onClick={() => setReportStatus(report.id, 'approved', user.email)}
-                        >
-                          <CheckGlyph /> Approve
-                        </button>
-                        <button
-                          className="admin-action admin-action--reject"
-                          type="button"
-                          onClick={() => setReportStatus(report.id, 'rejected', user.email)}
-                        >
-                          <CrossGlyph /> Reject
-                        </button>
-                      </div>
-                    </article>
-                  ))}
                 </div>
               ) : (
                 <div className="admin-list">
