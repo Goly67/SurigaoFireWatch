@@ -113,6 +113,8 @@ Setup:
 Add to your RTDB rules alongside `reports`:
 ```json
 { "rules": { "reports": { ".read": true, ".write": true },
+             "incidentStatuses": { ".read": true,
+               ".write": "auth != null && auth.token.email == 'forestparty223@gmail.com'" },
              "facebookLeads": { ".read": true, ".write": true },
              "airQualitySignals": { ".read": true, ".write": false },
              "_meta": { ".read": false, ".write": false } } }
@@ -131,7 +133,15 @@ with no per-read/write charge, just a bandwidth/storage ceiling.
 3. `cp .env.example .env.local` and fill in the `VITE_FIREBASE_*` values
 4. Set the database's rules for the demo (tighten before anything real):
    ```json
-   { "rules": { "reports": { ".read": true, ".write": true } } }
+   {
+     "rules": {
+       "reports": { ".read": true, ".write": true },
+       "incidentStatuses": {
+         ".read": true,
+         ".write": "auth != null && auth.token.email == 'forestparty223@gmail.com'"
+       }
+     }
+   }
    ```
 
 Leave `.env.local` unset and the app runs on in-memory sample data instead —

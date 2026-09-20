@@ -2,6 +2,7 @@ import { ref, onValue, set, remove, get } from 'firebase/database';
 import { db, firebaseEnabled } from './firebase.js';
 import { seedReports } from '../data/surigao.js';
 import { canAcceptReport, getReportSpamMessage } from './reportGuard.js';
+import { readIncidentStatusMap, writeIncidentStatusMap } from './incidentStatusStore.js';
 
 function withReviewDefaults(report) {
   return {
@@ -45,6 +46,38 @@ export function subscribeToReports(callback) {
   memoryListeners.add(callback);
   callback([...memoryReports]);
   return () => memoryListeners.delete(callback);
+}
+
+let memoryIncidentStatuses = readIncidentStatusMap();
+const incidentStatusListeners = new Set();
+
+/** Subscribe to lifecycle states shared by every connected Fire Watch client. */
+export function subscribeToIncidentStatuses(callback) {
+  if (firebaseEnabled) {
+    return onValue(ref(db, 'incidentStatuses'), (snapshot) => {
+      callback(snapshot.val() ?? {});
+    });
+  }
+
+  incidentStatusListeners.add(callback);
+  callback({ ...memoryIncidentStatuses });
+  return () => incidentStatusListeners.delete(callback);
+}
+
+/** Persist an admin's UC/FO decision for all connected clients. */
+export async function setIncidentStatus(incidentId, status) {
+  if (!incidentId || !['active', 'under_control', 'fire_out'].includes(status)) {
+    throw new Error('Invalid incident status update.');
+  }
+
+  if (firebaseEnabled) {
+    await set(ref(db, `incidentStatuses/${incidentId}`), status);
+    return;
+  }
+
+  memoryIncidentStatuses = { ...memoryIncidentStatuses, [incidentId]: status };
+  writeIncidentStatusMap(undefined, memoryIncidentStatuses);
+  for (const listener of incidentStatusListeners) listener({ ...memoryIncidentStatuses });
 }
 
 /** Write a new report. Resolves once it is committed (or added in-memory). */

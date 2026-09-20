@@ -56,6 +56,7 @@ export default function AdminPanel({
   reports = [],
   incidents = [],
   incidentStatusMap = {},
+  incidentStatusError = '',
   onUpdateIncidentStatus,
   onAdminAuthorizationChange,
   onClose,
@@ -256,6 +257,13 @@ export default function AdminPanel({
                   <span className="admin-tab-count">{fireControlList.length}</span>
                 </button>
               </div>
+
+              {incidentStatusError && (
+                <p className="admin-error" role="alert">
+                  <AlertGlyph />
+                  <span>{incidentStatusError}</span>
+                </p>
+              )}
 
               {panelState.activeTab === 'queue' ? (
                 <div className="admin-list">

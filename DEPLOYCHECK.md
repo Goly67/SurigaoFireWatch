@@ -49,6 +49,10 @@ Example starting point:
 {
   "rules": {
     "reports": { ".read": true, ".write": true },
+    "incidentStatuses": {
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'forestparty223@gmail.com'"
+    },
     "airQualitySignals": { ".read": true, ".write": false },
     "postApprovals": { ".read": true, ".write": true }
   }

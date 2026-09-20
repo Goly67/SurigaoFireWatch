@@ -22,7 +22,8 @@ import { getReportSpamMessage } from './lib/reportGuard.js';
 import { readIncidentStatusMap, writeIncidentStatusMap } from './lib/incidentStatusStore.js';
 import {
   subscribeToReports, addReport, usingFirebase,
-  subscribeToAirQualitySignals, subscribeToPostApprovals, approveForPost, revokePostApproval,
+  subscribeToAirQualitySignals, subscribeToPostApprovals, subscribeToIncidentStatuses,
+  setIncidentStatus, approveForPost, revokePostApproval,
 } from './lib/reportsStore.js';
 
 // Wind and the Indonesia haze forecast both refresh on this cadence.
@@ -51,6 +52,7 @@ export default function App() {
   const [adminOpen, setAdminOpen] = useState(false);
   const [adminAuthorized, setAdminAuthorized] = useState(false);
   const [adminAudioReady, setAdminAudioReady] = useState(false);
+  const [incidentStatusError, setIncidentStatusError] = useState('');
   const [incidentStatusMap, setIncidentStatusMap] = useState(() => readIncidentStatusMap());
   const [historicalOverlay, setHistoricalOverlay] = useState(null);
 
@@ -64,6 +66,7 @@ export default function App() {
   // Firebase Realtime Database when configured, in-memory sample data
   // otherwise — reportsStore.js hides which one this is.
   useEffect(() => subscribeToReports(setReports), []);
+  useEffect(() => subscribeToIncidentStatuses(setIncidentStatusMap), []);
   useEffect(() => subscribeToAirQualitySignals(setAirQualitySignals), []);
   useEffect(() => {
     let cancelled = false;
@@ -178,11 +181,22 @@ export default function App() {
   }, []);
 
   const updateIncidentStatus = useCallback((incidentId, nextStatus) => {
-    setIncidentStatusMap((current) => {
-      const next = { ...current, [incidentId]: nextStatus };
-      writeIncidentStatusMap(undefined, next);
-      return next;
-    });
+    setIncidentStatusError('');
+    void setIncidentStatus(incidentId, nextStatus)
+      .then(() => {
+        setIncidentStatusMap((current) => {
+          const next = { ...current, [incidentId]: nextStatus };
+          writeIncidentStatusMap(undefined, next);
+          return next;
+        });
+      })
+      .catch((error) => {
+        setIncidentStatusError(
+          error?.code === 'PERMISSION_DENIED'
+            ? 'UC/FO was not shared. Publish the incidentStatuses Firebase rule and sign in as the assigned admin.'
+            : 'UC/FO could not be shared. Check the Firebase connection and try again.'
+        );
+      });
   }, []);
 
   const handleAdminAuthorizationChange = useCallback((authorized) => {
@@ -385,6 +399,7 @@ export default function App() {
             reports={reports}
             incidents={allIncidents}
             incidentStatusMap={incidentStatusMap}
+            incidentStatusError={incidentStatusError}
             onUpdateIncidentStatus={updateIncidentStatus}
             onAdminAuthorizationChange={handleAdminAuthorizationChange}
             onClose={() => setAdminOpen(false)}
