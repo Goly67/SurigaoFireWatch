@@ -745,6 +745,17 @@ input[type='range'] { accent-color: var(--orange); }
   display: flex; align-items: center; gap: 8px;
 }
 
+@media (max-width: 900px) {
+  .notify-root {
+    top: 84px;
+    right: 12px;
+  }
+
+  .notify-tools {
+    gap: 6px;
+  }
+}
+
 .admin-button {
   border: 1px solid var(--line); border-radius: 999px; background: var(--paper);
   color: var(--ink); font-weight: 700; font-size: 0.72rem; letter-spacing: 0.04em;
@@ -1054,7 +1065,7 @@ img.tile-base {
   .rail-handle-arrow { transform: rotate(45deg); }
   .app.rail-collapsed .rail-handle-arrow { transform: rotate(225deg); }
 
-  .notify-root { top: 12px; right: 12px; }
+  .notify-root { top: 82px; right: 12px; }
   .notify-tools { gap: 6px; }
   .admin-button { padding: 8px 10px; font-size: 0.66rem; }
   .toast, .bell-dropdown { width: min(280px, 82vw); }
