@@ -36,6 +36,7 @@ export default function NotificationCenter({ incidents, reports = [], onSelect, 
       next.set(incident.id, incident.alarm.level);
       const before = prev.get(incident.id);
       if (before === undefined) {
+    const SOUND_PREFERENCE_KEY = 'fire-watch-sounds';
         fresh.push({ incident, kind: 'new' });
       } else if (before !== undefined && incident.alarm.level > before) {
         fresh.push({ incident, kind: 'escalated', from: before });
