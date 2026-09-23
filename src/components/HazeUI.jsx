@@ -285,6 +285,39 @@ export function HazeToggle({ on, onChange }) {
   );
 }
 
+export function NationalFireToggle({ on, onChange, loading = false, hotspots = [], fetchedAt = null, clockTick = 0 }) {
+  void clockTick;
+  const formatAge = (minutes) => {
+    if (minutes < 60) return `${minutes} min ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+    const days = Math.round(hours / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  };
+  const newestDetectionHours = hotspots.reduce((newest, hotspot) => (
+    Number.isFinite(hotspot.hoursOld) ? Math.min(newest, hotspot.hoursOld) : newest
+  ), Infinity);
+  const newestDetectionAge = Number.isFinite(newestDetectionHours)
+    ? Math.max(1, Math.round(newestDetectionHours * 60))
+    : null;
+  const fetchAge = fetchedAt ? Math.max(1, Math.round((Date.now() - fetchedAt) / 60000)) : null;
+  const status = loading
+    ? 'Refreshing PH fires'
+    : newestDetectionAge != null
+      ? `PH fires · newest anywhere ${formatAge(newestDetectionAge)}`
+      : fetchAge != null
+        ? `PH fires · checked ${fetchAge} min ago`
+        : 'PH satellite fires';
+
+  return (
+    <label className="toggle national-fire-toggle" title="Show recent satellite fire detections across the Philippines. The age shown here is for the newest hotspot anywhere in the country.">
+      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
+      <span className="toggle-track"><span className="toggle-knob" /></span>
+      <span className="haze-toggle-label">{status}</span>
+    </label>
+  );
+}
+
 export function HazeTimeline({ frame, onChange, baseTime }) {
   const [playing, setPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);

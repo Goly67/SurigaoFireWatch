@@ -43,7 +43,9 @@ export const FUEL_PROFILES = {
  * Stronger wind stretches the burn into a longer, narrower tongue.
  */
 export function lengthToBreadth(windKmh) {
-  return 1 + 8.729 * Math.pow(1 - Math.exp(-0.03 * Math.max(windKmh, 0)), 2.155);
+  // A calm-wind forecast still has a head direction from the weather model;
+  // keep enough elongation to show that predicted direction instead of a dot.
+  return Math.max(1.35, 1 + 8.729 * Math.pow(1 - Math.exp(-0.03 * Math.max(windKmh, 0)), 2.155));
 }
 
 /** Head-to-back ratio derived from the ellipse eccentricity. */

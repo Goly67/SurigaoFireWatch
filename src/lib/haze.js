@@ -37,7 +37,12 @@ const env = import.meta.env ?? {};
 // Trim so a key pasted with quotes or spaces in .env.local still works.
 const FIRMS_KEY = String(env.VITE_FIRMS_MAP_KEY || '').trim().replace(/^["']|["']$/g, '');
 const FIRMS_BASE = env.VITE_FIRMS_BASE || 'https://firms.modaps.eosdis.nasa.gov';
-const FIRMS_SOURCES = ['VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT'];
+const FIRMS_SOURCES = [
+  'VIIRS_NOAA20_NRT',
+  'VIIRS_NOAA21_NRT',
+  'VIIRS_SNPP_NRT',
+  'MODIS_NRT',
+];
 const DEMO = env.VITE_HAZE_DEMO === '1';
 
 // Esri republishes NASA LANCE VIIRS detections (NOAA-20, NOAA-21, Suomi NPP) as an
@@ -122,7 +127,7 @@ export const inIndonesia = (lat, lon) => INDONESIA_LAND.some((poly) => inPolygon
 
 /* ------------------------------------------------------------------ fires */
 
-function parseFirmsCsv(text) {
+function parseFirmsCsv(text, sensor = null) {
   const lines = text.trim().split(/\r?\n/);
   const head = (lines[0] || '').split(',');
   const col = (name) => head.indexOf(name);
@@ -144,24 +149,35 @@ function parseFirmsCsv(text) {
     if (Number.isNaN(lat) || Number.isNaN(lon)) continue;
     const hhmm = (c[iTime] || '0000').padStart(4, '0');
     const at = Date.parse(`${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`);
-    rows.push({ lat, lon, frp: parseFloat(c[iFrp]) || 0, at: Number.isNaN(at) ? null : at });
+    rows.push({
+      lat,
+      lon,
+      frp: parseFloat(c[iFrp]) || 0,
+      confidence: c[iConf] || null,
+      sensor,
+      at: Number.isNaN(at) ? null : at,
+    });
   }
   return rows;
 }
 
 /** NASA FIRMS rows for both satellites. Throws if no key or neither answers. */
-async function fetchFirmsRows() {
+export async function fetchFirmsRowsForBbox(bboxBounds = INDONESIA_BBOX) {
   if (!FIRMS_KEY) throw new Error('no FIRMS key set');
-  const bbox = INDONESIA_BBOX.join(',');
+  const bbox = bboxBounds.join(',');
   const results = await Promise.allSettled(
     FIRMS_SOURCES.map(async (source) => {
       const res = await fetch(`${FIRMS_BASE}/api/area/csv/${FIRMS_KEY}/${source}/${bbox}/1`);
       if (!res.ok) throw new Error(`FIRMS returned ${res.status}`);
-      return parseFirmsCsv(await res.text());
+      return parseFirmsCsv(await res.text(), source);
     })
   );
   if (results.every((r) => r.status === 'rejected')) throw results[0].reason;
   return results.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
+}
+
+async function fetchFirmsRows() {
+  return fetchFirmsRowsForBbox(INDONESIA_BBOX);
 }
 
 /** Esri's open copy of NASA VIIRS hotspots. Pages through up to 48,000 rows. */

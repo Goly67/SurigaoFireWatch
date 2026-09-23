@@ -10,7 +10,7 @@ import HistoricalFireView from './components/HistoricalFireView.jsx';
 import NotificationCenter from './components/NotificationCenter.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import {
-  HazePanel, HazeTimeline, HazeToggle, useHaze,
+  HazePanel, HazeTimeline, HazeToggle, NationalFireToggle, useHaze,
 } from './components/HazeUI.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
@@ -46,6 +46,10 @@ export default function App() {
   const [hazeOn, setHazeOn] = useState(false); // haze is a map layer, not a separate mode
   const [hazeFrame, setHazeFrame] = useState(0); // 0..24, 3 h apart
   const [hazeFocus, setHazeFocus] = useState(null);
+  const [nationalFireMode, setNationalFireMode] = useState(false);
+  const [nationalFireHotspots, setNationalFireHotspots] = useState([]);
+  const [nationalFireLoading, setNationalFireLoading] = useState(false);
+  const [nationalFireFetchedAt, setNationalFireFetchedAt] = useState(null);
   const [userLocation, setUserLocation] = useState(null);
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
@@ -84,6 +88,27 @@ export default function App() {
     const id = setInterval(refresh, 15 * 60 * 1000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
+
+  useEffect(() => {
+    if (!nationalFireMode) return undefined;
+    let cancelled = false;
+    const refresh = () => {
+      setNationalFireLoading(true);
+      fetchThermalHotspots({ national: true })
+        .then((hotspots) => {
+          if (cancelled) return;
+          setNationalFireHotspots(hotspots);
+          setNationalFireFetchedAt(Date.now());
+        })
+        .finally(() => { if (!cancelled) setNationalFireLoading(false); });
+    };
+    refresh();
+    const id = setInterval(refresh, 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [nationalFireMode]);
   useEffect(() => subscribeToPostApprovals(setPostApprovals), []);
 
   useEffect(() => {
@@ -254,8 +279,20 @@ export default function App() {
 
   function toggleHaze(on) {
     setHazeOn(on);
+    if (on) setNationalFireMode(false);
     setShowStations(!on);
     if (on) {
+      setView('list');
+      setSelectedId(null);
+      setPendingLocation(null);
+      setRailOpen(true);
+    }
+  }
+
+  function toggleNationalFireMode(on) {
+    setNationalFireMode(on);
+    if (on) {
+      setHazeOn(false);
       setView('list');
       setSelectedId(null);
       setPendingLocation(null);
@@ -385,6 +422,14 @@ export default function App() {
 
       <main className="stage">
         <HazeToggle on={hazeOn} onChange={toggleHaze} />
+        <NationalFireToggle
+          on={nationalFireMode}
+          onChange={toggleNationalFireMode}
+          loading={nationalFireLoading}
+          hotspots={nationalFireHotspots}
+          fetchedAt={nationalFireFetchedAt}
+          clockTick={tick}
+        />
 
         <NotificationCenter
           incidents={activeIncidents}
@@ -437,6 +482,8 @@ export default function App() {
           userLocation={userLocation}
           userLocationAccuracy={locationAccuracy}
           historicalOverlay={view === 'historical' ? historicalOverlay : null}
+          nationalFireMode={nationalFireMode}
+          nationalFireHotspots={nationalFireHotspots}
         />
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}

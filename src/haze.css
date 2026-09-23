@@ -8,6 +8,13 @@
 }
 .haze-toggle-label { font-size: 0.8rem; font-weight: 650; color: var(--ink); }
 
+.national-fire-toggle {
+  position: absolute; left: 16px; top: 62px; z-index: 550;
+  padding: 8px 14px 8px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96); border: 1px solid var(--line);
+  box-shadow: var(--shadow); backdrop-filter: blur(6px);
+}
+
 /* smoke image — softened so 0.5° cells don't read as pixels, and
    cross-faded (see HazeLayer) instead of hard-swapped between frames */
 .haze-smoke-img {

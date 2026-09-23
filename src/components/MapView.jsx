@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Tooltip, useMap, useMapEvents,
+  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Tooltip, Popup, useMap, useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { SURIGAO_CENTER } from '../data/surigao.js';
@@ -12,6 +12,7 @@ import { HazeLayer } from './HazeUI.jsx';
 // Frame that takes in Indonesia's fire belt and the whole Philippines.
 const HAZE_BOUNDS = [[-9.5, 96], [21.5, 144]];
 const MOBILE_HAZE_BOUNDS = [[-8.5, 108], [20.5, 132]];
+const PHILIPPINES_FIRE_BOUNDS = [[4.5, 116], [21.5, 127.5]];
 
 /** Flame glyph, flickering. Drawn rather than imported so it can be tinted. */
 const flameSvg = `
@@ -39,6 +40,22 @@ function incidentIcon(incident, isSelected, incidentState = 'active') {
         <span class="fire-flame">${showFire ? flameSvg : ''}</span>
         ${lightWarning ? '<span class="fire-smoke-dot"></span>' : ''}
         <span class="fire-code">${badgeCode}</span>
+      </span>`,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function satelliteFireIcon(hotspot) {
+  const scale = hotspot.frp > 40 ? 1.18 : hotspot.frp > 12 ? 1.05 : 0.92;
+  return L.divIcon({
+    className: 'pin-wrap',
+    html: `
+      <span class="fire-pin satellite-fire-pin" style="--alarm:#E34A17; --satellite-scale:${scale}">
+        <span class="fire-ring"></span>
+        <span class="fire-ring delay"></span>
+        <span class="fire-glow"></span>
+        <span class="fire-flame">${flameSvg}</span>
       </span>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
@@ -192,6 +209,127 @@ function HazeViewport({ active }) {
     }
   }, [active, map]);
   return null;
+}
+
+function NationalFireViewport({ active }) {
+  const map = useMap();
+  const previous = useRef(active);
+  useEffect(() => {
+    if (previous.current === active) return;
+    previous.current = active;
+    if (active) {
+      map.flyToBounds(PHILIPPINES_FIRE_BOUNDS, {
+        padding: [24, 24],
+        paddingBottomRight: window.matchMedia('(max-width: 900px)').matches
+          ? [0, Math.round(window.innerHeight * 0.28)]
+          : undefined,
+        duration: 0.9,
+      });
+    } else {
+      map.flyTo(SURIGAO_CENTER, window.matchMedia('(max-width: 900px)').matches ? 13 : 14, { duration: 0.9 });
+    }
+  }, [active, map]);
+  return null;
+}
+
+function confidenceLabel(value) {
+  const code = String(value ?? '').trim().toLowerCase();
+  if (Number.isFinite(Number(value))) return `${Number(value)}% (numeric satellite confidence)`;
+  if (code === 'h' || code === 'high') return 'High';
+  if (code === 'n' || code === 'nominal') return 'Nominal';
+  if (code === 'l' || code === 'low') return 'Low';
+  return value || 'Not reported';
+}
+
+function hotspotClassification(value) {
+  const numeric = Number(value);
+  if (Number.isFinite(numeric) && numeric < 50) return 'Possible fire · not confirmed';
+  return 'Possible satellite hotspot · not confirmed';
+}
+
+function sensorLabel(sensor) {
+  return String(sensor ?? '')
+    .replace('_NRT', '')
+    .replace('VIIRS_', 'VIIRS ')
+    .replace('MODIS', 'MODIS');
+}
+
+function acquisitionLabel(value) {
+  if (value == null || value === '') return 'Not reported';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${date.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })} ${date.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} PHT`;
+}
+
+function SatelliteHotspotMarker({ hotspot, index }) {
+  const [copied, setCopied] = useState(false);
+  const latitude = `${Math.abs(hotspot.lat).toFixed(6)}° ${hotspot.lat >= 0 ? 'N' : 'S'}`;
+  const longitude = `${Math.abs(hotspot.lon).toFixed(6)}° ${hotspot.lon >= 0 ? 'E' : 'W'}`;
+  const coordinates = `${hotspot.lat.toFixed(6)}, ${hotspot.lon.toFixed(6)}`;
+
+  async function copyLocation() {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(coordinates);
+      } else {
+        const input = document.createElement('textarea');
+        input.value = coordinates;
+        input.style.position = 'fixed';
+        input.style.opacity = '0';
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        input.remove();
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <Marker
+      key={`${hotspot.lat}-${hotspot.lon}-${hotspot.acqTime ?? index}`}
+      position={[hotspot.lat, hotspot.lon]}
+      icon={satelliteFireIcon(hotspot)}
+    >
+      <Popup className="satellite-hotspot-popup" closeButton>
+        <div className="hotspot-popup-head">
+          <span className="hotspot-popup-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: flameSvg }} />
+          <div>
+            <strong>{hotspotClassification(hotspot.confidence)}</strong>
+            <span>Needs another satellite pass or ground confirmation</span>
+          </div>
+        </div>
+        <div className="hotspot-popup-grid">
+          <div><span>Latitude</span><b>{latitude}</b></div>
+          <div><span>Longitude</span><b>{longitude}</b></div>
+          <div><span>Pixel-integrated FRP</span><b>{hotspot.frp.toFixed(1)} MW</b></div>
+          <div><span>Confidence</span><b>{confidenceLabel(hotspot.confidence)}</b></div>
+          <div><span>Sensor</span><b>{sensorLabel(hotspot.sensor)}</b></div>
+          <div><span>Acquired</span><b>{acquisitionLabel(hotspot.acqTime)}</b></div>
+        </div>
+        <button type="button" className="hotspot-copy" onClick={copyLocation}>
+          <span aria-hidden="true">{copied ? '✓' : '⌗'}</span>
+          {copied ? 'Location copied' : 'Copy coordinates'}
+        </button>
+        <p className="hotspot-popup-note">
+          This hotspot was detected about {hotspot.hoursOld.toFixed(1)} h ago. FRP is pixel-integrated radiant power detected by the satellite, not the fire's size. The map toggle reports the newest hotspot anywhere in the Philippines. This is an approximate satellite pixel location, not an exact fire perimeter.
+        </p>
+      </Popup>
+    </Marker>
+  );
+}
+
+function NationalFireLayer({ hotspots }) {
+  return hotspots.map((hotspot, index) => (
+    <SatelliteHotspotMarker
+      key={`${hotspot.lat}-${hotspot.lon}-${hotspot.acqTime ?? index}`}
+      hotspot={hotspot}
+      index={index}
+    />
+  ));
 }
 
 function MobilePanelOffset({ railOpen }) {
@@ -386,6 +524,8 @@ export default function MapView({
   userLocation = null,
   userLocationAccuracy = null,
   historicalOverlay = null,
+  nationalFireMode = false,
+  nationalFireHotspots = [],
 }) {
   const selected = incidents.find((i) => i.id === selectedId);
   const selectedState = selected ? incidentStateMap[selected.id] ?? 'active' : 'active';
@@ -414,6 +554,7 @@ export default function MapView({
       <ClickToPlace active={placing} onPick={onPickLocation} />
       {selected && <FlyTo location={selected.location} railOpen={railOpen} />}
       <HazeViewport active={hazeMode} />
+      <NationalFireViewport active={nationalFireMode} />
       <MobilePanelOffset railOpen={railOpen} />
       {hazeMode && (
         <HazeLayer
@@ -465,18 +606,22 @@ export default function MapView({
         </>
       )}
 
-      <LocalLayer
-        incidents={incidents}
-        incidentStateMap={incidentStateMap}
-        selectedId={selectedId}
-        onSelect={onSelect}
-        showStations={showStations}
-        selected={selected}
-        active={active}
-        live={live}
-        horizonMinutes={horizonMinutes}
-        pendingLocation={pendingLocation}
-      />
+      {nationalFireMode ? (
+        <NationalFireLayer hotspots={nationalFireHotspots} />
+      ) : (
+        <LocalLayer
+          incidents={incidents}
+          incidentStateMap={incidentStateMap}
+          selectedId={selectedId}
+          onSelect={onSelect}
+          showStations={showStations}
+          selected={selected}
+          active={active}
+          live={live}
+          horizonMinutes={horizonMinutes}
+          pendingLocation={pendingLocation}
+        />
+      )}
       <UserLocationMarker location={userLocation} accuracy={userLocationAccuracy} />
     </MapContainer>
   );
