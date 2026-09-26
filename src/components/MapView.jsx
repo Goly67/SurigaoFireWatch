@@ -165,7 +165,7 @@ function UserLocationPulse({ center }) {
   );
 }
 
-function UserLocationMarker({ location, accuracy }) {
+function UserLocationMarker({ location, accuracy, tempC, showTemp }) {
   if (!location) return null;
   return (
     <>
@@ -182,6 +182,11 @@ function UserLocationMarker({ location, accuracy }) {
         radius={8}
         pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
       />
+      {/* Barangay-scale reading — this device's own position, drawn only
+          on this device. Nobody else's map ever gets this marker. */}
+      {showTemp && (
+        <Marker position={location} icon={personalTempIcon(tempC)} interactive={false} zIndexOffset={5000} />
+      )}
     </>
   );
 }
@@ -213,7 +218,7 @@ function HazeViewport({ active }) {
 
 function NationalFireViewport({ active }) {
   const map = useMap();
-  const previous = useRef(active);
+  const previous = useRef(null);
   useEffect(() => {
     if (previous.current === active) return;
     previous.current = active;
@@ -248,7 +253,11 @@ function hotspotClassification(value) {
 }
 
 function sensorLabel(sensor) {
-  return String(sensor ?? '')
+  const value = String(sensor ?? '');
+  if (value === 'N') return 'Suomi NPP';
+  if (value === 'N20') return 'NOAA-20';
+  if (value === 'N21') return 'NOAA-21';
+  return value
     .replace('_NRT', '')
     .replace('VIIRS_', 'VIIRS ')
     .replace('MODIS', 'MODIS');
@@ -330,6 +339,53 @@ function NationalFireLayer({ hotspots }) {
       index={index}
     />
   ));
+}
+
+/** Cool-to-hot gradient for a Philippine temperature range. */
+function tempColor(tempC) {
+  if (typeof tempC !== 'number' || Number.isNaN(tempC)) return '#9AA3AE';
+  if (tempC < 24) return '#2F8FE0';
+  if (tempC < 27) return '#2FB0A6';
+  if (tempC < 30) return '#E8B400';
+  if (tempC < 33) return '#F4700A';
+  return '#DC2F2F';
+}
+
+function cityTempIcon(city) {
+  const hasTemp = typeof city.tempC === 'number' && !Number.isNaN(city.tempC);
+  return L.divIcon({
+    className: 'pin-wrap',
+    html: `<span class="temp-chip" style="--temp-color:${tempColor(city.tempC)}">${hasTemp ? `${Math.round(city.tempC)}°` : '—'}</span>`,
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
+  });
+}
+
+/**
+ * PAGASA AWS readings are public and shown at the reporting station's
+ * coordinates. The compact chip keeps dense station clusters readable.
+ */
+function CityTemperatureLayer({ cities }) {
+  return cities.map((city) => {
+    const hasTemp = typeof city.tempC === 'number' && !Number.isNaN(city.tempC);
+    return (
+      <Marker key={city.id} position={city.location} icon={cityTempIcon(city)} zIndexOffset={2500}>
+        <Tooltip direction="top" offset={[0, -14]} opacity={1} className="temp-tooltip">
+          {city.name}{city.stationName ? ` · ${city.stationName}` : ''}{hasTemp ? ` · ${Math.round(city.tempC)}°C` : ''}
+        </Tooltip>
+      </Marker>
+    );
+  });
+}
+
+function personalTempIcon(tempC) {
+  const hasTemp = typeof tempC === 'number' && !Number.isNaN(tempC);
+  return L.divIcon({
+    className: 'pin-wrap',
+    html: `<span class="temp-chip temp-chip--personal" style="--temp-color:${tempColor(tempC)}">${hasTemp ? `${Math.round(tempC)}°` : '—'}</span>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 40],
+  });
 }
 
 function MobilePanelOffset({ railOpen }) {
@@ -523,6 +579,8 @@ export default function MapView({
   hazeFocus = null,
   userLocation = null,
   userLocationAccuracy = null,
+  localWeather = null,
+  cityTemps = [],
   historicalOverlay = null,
   nationalFireMode = false,
   nationalFireHotspots = [],
@@ -540,7 +598,7 @@ export default function MapView({
     <MapContainer
       center={SURIGAO_CENTER}
       zoom={14}
-      className={`map ${placing ? 'is-placing' : ''}`}
+      className={`map ${placing ? 'is-placing' : ''} ${nationalFireMode ? 'is-national-fire-mode' : ''}`}
       zoomControl={false}
     >
       <TileLayer
@@ -606,23 +664,30 @@ export default function MapView({
         </>
       )}
 
-      {nationalFireMode ? (
+      {nationalFireMode && (
         <NationalFireLayer hotspots={nationalFireHotspots} />
-      ) : (
-        <LocalLayer
-          incidents={incidents}
-          incidentStateMap={incidentStateMap}
-          selectedId={selectedId}
-          onSelect={onSelect}
-          showStations={showStations}
-          selected={selected}
-          active={active}
-          live={live}
-          horizonMinutes={horizonMinutes}
-          pendingLocation={pendingLocation}
-        />
       )}
-      <UserLocationMarker location={userLocation} accuracy={userLocationAccuracy} />
+      {!nationalFireMode && <CityTemperatureLayer cities={cityTemps} />}
+      <LocalLayer
+        incidents={incidents}
+        incidentStateMap={incidentStateMap}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        showStations={showStations}
+        selected={selected}
+        active={active}
+        live={live}
+        horizonMinutes={horizonMinutes}
+        pendingLocation={pendingLocation}
+      />
+      {/* Barangay view: only the person's own temperature, only on their
+          own screen — hidden the moment the cities view is active. */}
+      <UserLocationMarker
+        location={userLocation}
+        accuracy={userLocationAccuracy}
+        tempC={localWeather?.tempC ?? null}
+        showTemp={!nationalFireMode && !!userLocation && !!localWeather}
+      />
     </MapContainer>
   );
 }

@@ -101,14 +101,34 @@ const SORT_MODES = [
   { key: 'recent', label: 'Newest' },
 ];
 
+/** Sun glyph for dry conditions, rain glyph once precipitation shows up. */
+function LocalWeatherGlyph({ isRaining }) {
+  if (isRaining) {
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path d="M7 15a4.5 4.5 0 0 1 .5-8.98A5.5 5.5 0 0 1 18 8.5 4 4 0 0 1 17 16H7Z" fill="#EAF4FF" stroke="#1677D2" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M9 18l-1 2M13 18l-1 2M17 18l-1 2" stroke="#1677D2" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" fill="#FFF4D6" stroke="#E8A400" strokeWidth="1.6" />
+      <path d="M12 2.5v2.4M12 19v2.4M21.5 12h-2.4M4.9 12H2.5M18.5 5.5l-1.7 1.7M7.2 16.8l-1.7 1.7M18.5 18.5l-1.7-1.7M7.2 7.2 5.5 5.5" stroke="#E8A400" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function Sidebar({
   incidents, wind, selectedId, showStations, onToggleStations, onSelect, onReport, onOpenLevels,
   onOpenHistory,
   airQualityActive = false,
+  userLocation = null,
+  localWeather = null,
 }) {
   const [sortMode, setSortMode] = useState('severity');
   const [query, setQuery] = useState('');
-  const [coverageOpen, setCoverageOpen] = useState(true);
+  const [coverageOpen, setCoverageOpen] = useState(false);
 
   const live = useMemo(() => {
     const filtered = query.trim()
@@ -158,22 +178,46 @@ export default function Sidebar({
         </div>
       </header>
 
-      <div className="wind-card">
-        <div className="wind-dial" style={{ '--dir': `${wind.fromDeg + 180}deg` }}>
-          <span className="wind-arrow" />
-          <span className="wind-sweep" />
+      <div className="weather-stack">
+        <div className="wind-card">
+          <div className="wind-dial" style={{ '--dir': `${wind.fromDeg + 180}deg` }}>
+            <span className="wind-arrow" />
+            <span className="wind-sweep" />
+          </div>
+          <div>
+            <p className="wind-speed">{wind.speedKmh.toFixed(0)} km/h</p>
+            <p className="muted small">
+              Pushing {compassLabel((wind.fromDeg + 180) % 360)} · {wind.humidity}% humidity
+            </p>
+            <p className="muted small">
+              {wind.source === 'open-meteo'
+                ? 'Live observation'
+                : 'Fallback reading — weather service unreachable'}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="wind-speed">{wind.speedKmh.toFixed(0)} km/h</p>
-          <p className="muted small">
-            Pushing {compassLabel((wind.fromDeg + 180) % 360)} · {wind.humidity}% humidity
-          </p>
-          <p className="muted small">
-            {wind.source === 'open-meteo'
-              ? 'Live observation'
-              : 'Fallback reading — weather service unreachable'}
-          </p>
-        </div>
+
+        {/* Only exists once this device is actually sharing a location —
+            no location, no card, nothing guessed in its place. */}
+        {userLocation && localWeather && (
+          <div className="local-weather-card">
+            <div className="local-weather-icon">
+              <LocalWeatherGlyph isRaining={(localWeather.rainMm ?? 0) > 0.1} />
+            </div>
+            <div>
+              <p className="local-weather-label">Local temperature</p>
+              <p className="local-weather-temp">{Math.round(localWeather.tempC)}°C</p>
+              <p className="muted small">
+                {(localWeather.rainMm ?? 0) > 0.1
+                  ? `${localWeather.rainMm.toFixed(1)} mm rain now`
+                  : 'No rain right now'}
+              </p>
+              <p className="muted small">
+                PAGASA station · {localWeather.siteName}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       <button className="primary block pulse report-btn" onClick={onReport}>

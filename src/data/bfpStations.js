@@ -507,3 +507,25 @@ export const regions = [...new Set(bfpStations.map((s) => s.region))].sort();
 
 export const STATION_DATA_NOTE =
   'Station locations and numbers from Google Maps listings. Verify before operational use.';
+
+const CITY_TEMPERATURE_LOCATIONS = {
+  'Surigao City': [9.7839, 125.4889],
+};
+
+/**
+ * One representative point per city/municipality, used to associate nearby
+ * PAGASA AWS readings with city labels on the map.
+ */
+export const cities = Object.values(
+  bfpStations.reduce((byCity, station) => {
+    if (!byCity[station.city]) {
+      byCity[station.city] = {
+        id: station.city.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+        name: station.city,
+        region: station.region,
+        location: CITY_TEMPERATURE_LOCATIONS[station.city] ?? station.location,
+      };
+    }
+    return byCity;
+  }, {})
+).sort((a, b) => a.name.localeCompare(b.name));

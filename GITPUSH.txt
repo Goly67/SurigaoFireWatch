@@ -1,0 +1,4 @@
+git add .
+git status
+git commit -m "Improve fire reporting and add PAGASA weather data"
+git push origin main

@@ -14,9 +14,11 @@ import {
 } from './components/HazeUI.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
+import { fetchLocalWeather, fetchCityTemperatures } from './lib/localWeather.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
 import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
+import { cities } from './data/bfpStations.js';
 import { playAdminReportSound } from './lib/alarmAudio.js';
 import { getReportSpamMessage } from './lib/reportGuard.js';
 import { readIncidentStatusMap, writeIncidentStatusMap } from './lib/incidentStatusStore.js';
@@ -36,11 +38,13 @@ export default function App() {
   const [thermalHotspots, setThermalHotspots] = useState([]);
   const [postApprovals, setPostApprovals] = useState({});
   const [wind, setWind] = useState(FALLBACK_WIND);
+  const [localWeather, setLocalWeather] = useState(null);
+  const [cityTemps, setCityTemps] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [view, setView] = useState('list'); // list | report | levels | historical
   const [pendingLocation, setPendingLocation] = useState(null);
   const [horizonMinutes, setHorizonMinutes] = useState(30);
-  const [showStations, setShowStations] = useState(true);
+  const [showStations, setShowStations] = useState(false);
   const [railOpen, setRailOpen] = useState(true);
   const [tick, setTick] = useState(0);
   const [hazeOn, setHazeOn] = useState(false); // haze is a map layer, not a separate mode
@@ -64,6 +68,14 @@ export default function App() {
   const recentAdminReportIdsRef = useRef(new Set());
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
+  const userLocationRef = useRef(userLocation);
+  userLocationRef.current = userLocation;
+  // Rounded to ~1 km so ordinary GPS jitter doesn't retrigger the weather
+  // fetch below on every watchPosition tick — only a real move does, and
+  // going null the instant location is turned off.
+  const userLocationKey = userLocation
+    ? `${userLocation[0].toFixed(2)}:${userLocation[1].toFixed(2)}`
+    : null;
 
   const haze = useHaze(hazeOn);
 
@@ -122,6 +134,38 @@ export default function App() {
       clearInterval(id);
     };
   }, []);
+
+    // Public PAGASA station readings load independently of device location.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => fetchCityTemperatures(cities).then((rows) => !cancelled && setCityTemps(rows));
+    refresh();
+    const id = setInterval(refresh, 10 * 60 * 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, []);
+
+  // The person's own temperature/rain reading only exists while their
+  // device is actually sharing a location — it disappears the moment
+  // userLocation does, and it's never sent anywhere shared.
+  useEffect(() => {
+    if (!userLocationKey) {
+      setLocalWeather(null);
+      return undefined;
+    }
+    let cancelled = false;
+    const refresh = () =>
+      fetchLocalWeather(userLocationRef.current, true).then((w) => !cancelled && setLocalWeather(w));
+    refresh();
+    const id = setInterval(refresh, REFRESH_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userLocationKey]);
 
   useEffect(() => {
     if (!adminAuthorized) return;
@@ -279,8 +323,12 @@ export default function App() {
 
   function toggleHaze(on) {
     setHazeOn(on);
-    if (on) setNationalFireMode(false);
-    setShowStations(!on);
+    if (on) {
+      setNationalFireMode(false);
+      setShowStations(false);
+    } else {
+      setShowStations(true);
+    }
     if (on) {
       setView('list');
       setSelectedId(null);
@@ -291,6 +339,7 @@ export default function App() {
 
   function toggleNationalFireMode(on) {
     setNationalFireMode(on);
+    setShowStations(!on);
     if (on) {
       setHazeOn(false);
       setView('list');
@@ -389,6 +438,8 @@ export default function App() {
       <Sidebar
         incidents={activeIncidents}
         wind={wind}
+        userLocation={userLocation}
+        localWeather={localWeather}
         selectedId={selectedId}
         showStations={showStations}
         onToggleStations={() => setShowStations((s) => !s)}
@@ -481,6 +532,8 @@ export default function App() {
           hazeFocus={hazeFocus}
           userLocation={userLocation}
           userLocationAccuracy={locationAccuracy}
+          localWeather={localWeather}
+          cityTemps={cityTemps}
           historicalOverlay={view === 'historical' ? historicalOverlay : null}
           nationalFireMode={nationalFireMode}
           nationalFireHotspots={nationalFireHotspots}

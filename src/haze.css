@@ -116,3 +116,12 @@
   content: ''; position: absolute; left: 6px; top: 1px; width: 10px; height: 10px;
   background: #B3261E; clip-path: polygon(50% 0, 100% 100%, 0 100%);
 }
+
+.himawari-live-link {
+  position: absolute; left: 16px; top: 108px; z-index: 550;
+  padding: 7px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.96); border: 1px solid var(--line);
+  box-shadow: var(--shadow); backdrop-filter: blur(6px);
+  color: var(--ink); font-size: 0.76rem; font-weight: 700; text-decoration: none;
+}
+.himawari-live-link:hover { border-color: var(--orange); color: var(--orange); }

@@ -170,6 +170,16 @@ nearby report when it falls within 2 km, alongside the independent-report
 logic. VIIRS detects thermal activity, not individual houses, so it never
 creates a report or map pin by itself.
 
+The Philippines fire map merges the ArcGIS VIIRS feed with NASA FIRMS when a
+FIRMS map key is configured. FIRMS adds separate near-real-time feeds for
+Suomi NPP VIIRS, NOAA-20 VIIRS, NOAA-21 VIIRS, and MODIS. Create a free key at
+<https://firms.modaps.eosdis.nasa.gov/api/map_key/> and add it to `.env.local`:
+
+```bash
+VITE_FIRMS_MAP_KEY=your_firms_map_key
+```
+
+
 ## Evidence: Google Drive links, not uploads
 
 There's no file upload — no free tier here has anywhere cheap to put photo or

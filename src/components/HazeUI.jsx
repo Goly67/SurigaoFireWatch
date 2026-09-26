@@ -304,9 +304,9 @@ export function NationalFireToggle({ on, onChange, loading = false, hotspots = [
   const status = loading
     ? 'Refreshing PH fires'
     : newestDetectionAge != null
-      ? `PH fires · newest anywhere ${formatAge(newestDetectionAge)}`
+      ? `PH fires · ${hotspots.length} live · newest ${formatAge(newestDetectionAge)}`
       : fetchAge != null
-        ? `PH fires · checked ${fetchAge} min ago`
+        ? `PH fires · ${hotspots.length} live · checked ${fetchAge} min ago`
         : 'PH satellite fires';
 
   return (
