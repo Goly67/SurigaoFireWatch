@@ -223,7 +223,7 @@ export default function App() {
   const nearbyIncident = userLocation
     ? incidents
       .map((incident) => ({ incident, distance: distanceMeters(userLocation, incident.location) }))
-      .filter(({ distance }) => distance <= 500)
+      .filter(({ incident, distance }) => distance <= 500 && incident.alarm.level > 0)
       .sort((a, b) => a.distance - b.distance)[0]?.incident ?? null
     : null;
   const nearbyIncidentId = nearbyIncident?.id ?? null;
