@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Tooltip, Popup, useMap, useMapEvents,
+  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Pane, Tooltip, Popup, useMap, useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { SURIGAO_CENTER } from '../data/surigao.js';
@@ -165,14 +165,16 @@ function UserLocationPulse({ center }) {
   );
 }
 
-function UserLocationMarker({ location, accuracy, tempC, showTemp }) {
+function UserLocationMarker({ location, accuracy }) {
+  const [isMobile] = useState(() => window.matchMedia('(max-width: 900px)').matches);
+
   if (!location) return null;
   return (
     <>
       {accuracy != null && (
         <Circle
           center={location}
-          radius={accuracy}
+          radius={isMobile ? 200 : accuracy}
           pathOptions={{ color: '#1677D2', weight: 1, fillColor: '#1677D2', fillOpacity: 0.08 }}
         />
       )}
@@ -182,11 +184,6 @@ function UserLocationMarker({ location, accuracy, tempC, showTemp }) {
         radius={8}
         pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
       />
-      {/* Barangay-scale reading — this device's own position, drawn only
-          on this device. Nobody else's map ever gets this marker. */}
-      {showTemp && (
-        <Marker position={location} icon={personalTempIcon(tempC)} interactive={false} zIndexOffset={5000} />
-      )}
     </>
   );
 }
@@ -375,16 +372,6 @@ function CityTemperatureLayer({ cities }) {
         </Tooltip>
       </Marker>
     );
-  });
-}
-
-function personalTempIcon(tempC) {
-  const hasTemp = typeof tempC === 'number' && !Number.isNaN(tempC);
-  return L.divIcon({
-    className: 'pin-wrap',
-    html: `<span class="temp-chip temp-chip--personal" style="--temp-color:${tempColor(tempC)}">${hasTemp ? `${Math.round(tempC)}°` : '—'}</span>`,
-    iconSize: [30, 30],
-    iconAnchor: [15, 40],
   });
 }
 
@@ -680,14 +667,12 @@ export default function MapView({
         horizonMinutes={horizonMinutes}
         pendingLocation={pendingLocation}
       />
-      {/* Barangay view: only the person's own temperature, only on their
-          own screen — hidden the moment the cities view is active. */}
-      <UserLocationMarker
-        location={userLocation}
-        accuracy={userLocationAccuracy}
-        tempC={localWeather?.tempC ?? null}
-        showTemp={!nationalFireMode && !!userLocation && !!localWeather}
-      />
+      <Pane name="userLocationPane" style={{ zIndex: 675 }}>
+        <UserLocationMarker
+          location={userLocation}
+          accuracy={userLocationAccuracy}
+        />
+      </Pane>
     </MapContainer>
   );
 }

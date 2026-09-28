@@ -1,4 +1,5 @@
 import { barangays } from '../data/surigao.js';
+import surigaoBarangayBoundaries from '../data/surigaoBarangays.json' with { type: 'json' };
 import { bfpStations } from '../data/bfpStations.js';
 import { distanceMeters, compassLabel } from './geo.js';
 import { projectHorizons, FUEL_PROFILES } from './fireSpread.js';
@@ -7,8 +8,64 @@ import { triage, CLUSTER_RADIUS_M, CLUSTER_WINDOW_MIN } from './verification.js'
 
 const ACTIVE_FIRE_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Nearest barangay to a point, used to pick a fuel class and a place name. */
+function hasValidLocation(location) {
+  return Array.isArray(location) &&
+    location.length >= 2 &&
+    Number.isFinite(location[0]) &&
+    Number.isFinite(location[1]) &&
+    location[0] >= -90 && location[0] <= 90 &&
+    location[1] >= -180 && location[1] <= 180;
+}
+
+function pointInRing([lat, lng], ring) {
+  let inside = false;
+
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [x1, y1] = ring[j];
+    const [x2, y2] = ring[i];
+    const cross = (lng - x1) * (y2 - y1) - (lat - y1) * (x2 - x1);
+    const onSegment = Math.abs(cross) < 1e-10 &&
+      lng >= Math.min(x1, x2) - 1e-10 && lng <= Math.max(x1, x2) + 1e-10 &&
+      lat >= Math.min(y1, y2) - 1e-10 && lat <= Math.max(y1, y2) + 1e-10;
+
+    if (onSegment) return true;
+
+    if ((y1 > lat) !== (y2 > lat) && lng < ((x2 - x1) * (lat - y1)) / (y2 - y1) + x1) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function pointInGeometry(location, geometry) {
+  const polygons = geometry.type === 'Polygon'
+    ? [geometry.coordinates]
+    : geometry.type === 'MultiPolygon'
+      ? geometry.coordinates
+      : [];
+
+  return polygons.some(([outer, ...holes]) => (
+    pointInRing(location, outer) && !holes.some((hole) => pointInRing(location, hole))
+  ));
+}
+
+/** Barangay containing a point, falling back to the nearest known center. */
 export function resolveBarangay(location) {
+  const boundaryMatch = surigaoBarangayBoundaries.features.find(({ geometry }) => (
+    pointInGeometry(location, geometry)
+  ));
+
+  if (boundaryMatch) {
+    const name = boundaryMatch.properties.NAME_3;
+    return barangays.find((barangay) => barangay.name === name) ?? {
+      id: `brgy-${boundaryMatch.properties.ID_3}`,
+      name,
+      center: location,
+      fuel: 'mixed_residential',
+    };
+  }
+
   let best = barangays[0];
   let bestDist = Infinity;
   for (const b of barangays) {
@@ -61,6 +118,7 @@ export function buildIncidents(reports, wind, airQualitySignals = [], thermalHot
     return Number.isFinite(detectedAt) && now - detectedAt <= 30 * 60 * 1000;
   });
   const activeReports = reports.filter((report) => {
+    if (!report || !hasValidLocation(report.location)) return false;
     const status = report.status ?? 'approved';
     if (status === 'rejected' || status === 'pending') return false;
     const reportedAt = new Date(report.reportedAt).getTime();

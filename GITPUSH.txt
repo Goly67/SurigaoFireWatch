@@ -1,4 +1,4 @@
 git add .
 git status
-git commit -m "Improve fire reporting and add PAGASA weather data"
+git commit -m "Improve Ring accuracy and more"
 git push origin main
