@@ -511,6 +511,12 @@ button:focus-visible, summary:focus-visible, .sa-input:focus-visible { outline: 
 .analytics-status { display: grid; gap: 9px; }
 .about-panel { gap: 14px; }
 .about-panel > header p { margin: 4px 0 0; }
+.about-team { display: grid; gap: 8px; }
+.about-team > h3 { margin: 0; color: var(--navy); font: 800 0.95rem var(--font-display); }
+.about-team-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.about-team-member { min-width: 0; gap: 3px; padding: 11px; }
+.about-team-member strong { color: var(--navy); font-size: 0.78rem; }
+.about-team-member span { color: var(--ink-soft); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; }
 .about-features { display: grid; gap: 9px; }
 .about-feature { flex-direction: row; align-items: flex-start; gap: 11px; padding: 13px; }
 .about-feature-icon { display: grid; place-items: center; flex: 0 0 34px; height: 34px; border-radius: 10px; background: #EAF1F9; font-size: 1.05rem; }
