@@ -1,15 +1,17 @@
 /**
  * Real Bureau of Fire Protection stations and offices across Mindanao.
  *
- * Locations and contact numbers were retrieved from Google Maps Places data.
- * They are real records, not placeholders — but they are third-party listings,
- * so verify a number against the station itself before relying on it in an
- * emergency. Listings go stale; people do not.
+ * Station records and contact numbers are compiled from public map listings.
+ * Several Surigao del Norte municipal locations use town-center coordinates
+ * where an exact station listing was unavailable. Verify a pin and number
+ * with the station before relying on it in an emergency.
  *
  * Coverage: Regions IX, X, XI, XII, XIII and BARMM.
  */
 
 export const MINDANAO_CENTER = [8.0, 124.9];
+export const BFP_CARAGA_FALLBACK_CONTACT = '(086) 232-5131';
+export const NATIONAL_EMERGENCY_CONTACT = '911';
 
 export const bfpStations = [
   // ---- Region XIII (Caraga) ----
@@ -24,11 +26,11 @@ export const bfpStations = [
   },
   {
     id: 'surigao-city',
-    name: 'Surigao City Fire Station',
+    name: 'Surigao City Central Fire Station',
     region: 'Region XIII (Caraga)',
     city: 'Surigao City',
     location: [9.7920671, 125.4939451],
-    contact: '+63 931 721 8790',
+    contact: '0931-721-8790 / 0955-214-8510',
     kind: 'station',
   },
   // ---- Surigao del Norte municipal fire stations ----
@@ -127,7 +129,7 @@ export const bfpStations = [
     region: 'Region XIII (Caraga)',
     city: 'Tagana-an',
     location: [9.6964, 125.5825],
-    contact: null,
+    contact: 'MDRRMO: 0995-154-9304',
     kind: 'station',
   },
   {
@@ -227,8 +229,19 @@ export const bfpStations = [
     region: 'Region XIII (Caraga)',
     city: 'Butuan City',
     location: [8.9505815, 125.5436375],
-    contact: null,
+    contact: '(085) 342-8217 / (085) 815-0160 / 0910-667-0623',
+    contactNote: 'Older directory listing; verify before use.',
     kind: 'station',
+  },
+  {
+    id: 'butuan-ampayon',
+    name: 'Butuan Ampayon Fire Sub-station',
+    region: 'Region XIII (Caraga)',
+    city: 'Ampayon (Butuan City)',
+    location: [8.9612686, 125.6025253],
+    contact: '(085) 815-2616 / 0918-509-7692',
+    contactNote: 'Older directory listing; verify before use. Map pin uses the approximate Ampayon barangay center.',
+    kind: 'substation',
   },
   {
     id: 'butuan-libertad',
@@ -292,7 +305,7 @@ export const bfpStations = [
     region: 'Region X (Northern Mindanao)',
     city: 'Cagayan de Oro City',
     location: [8.4810657, 124.6358355],
-    contact: null,
+    contact: '0967-840-4415',
     kind: 'station',
   },
   {
@@ -366,7 +379,7 @@ export const bfpStations = [
     region: 'Region XI (Davao)',
     city: 'Digos City',
     location: [6.744831, 125.3563545],
-    contact: '+63 82 553 1160',
+    contact: '(082) 553-1160 / 0919-858-8656',
     kind: 'station',
   },
   {
@@ -404,7 +417,7 @@ export const bfpStations = [
     region: 'Region XII (SOCCSKSARGEN)',
     city: 'General Santos City',
     location: [6.1146551, 125.170552],
-    contact: null,
+    contact: '(083) 552-1160 / 0943-341-5561 / Dial 160',
     kind: 'station',
   },
   {
@@ -413,7 +426,7 @@ export const bfpStations = [
     region: 'Region XII (SOCCSKSARGEN)',
     city: 'General Santos City',
     location: [6.0722616, 125.1410855],
-    contact: '+63 83 552 1160',
+    contact: '(083) 552-1160 / 0943-341-5561 / Dial 160',
     kind: 'regional',
   },
   {
@@ -442,7 +455,7 @@ export const bfpStations = [
     region: 'Region IX (Zamboanga Peninsula)',
     city: 'Zamboanga City',
     location: [6.9071726, 122.0748865],
-    contact: '+63 62 991 2267',
+    contact: '(062) 991-2267 / 0955-781-6063',
     kind: 'district',
   },
   {
@@ -506,7 +519,7 @@ export const bfpStations = [
 export const regions = [...new Set(bfpStations.map((s) => s.region))].sort();
 
 export const STATION_DATA_NOTE =
-  'Station locations and numbers from Google Maps listings. Verify before operational use.';
+  'Pins use public map listings where available; some locations mark a town or barangay center, not the exact station building. Older-directory and user-submitted contacts are not independently verified; confirm before operational use.';
 
 const CITY_TEMPERATURE_LOCATIONS = {
   'Surigao City': [9.7839, 125.4889],
@@ -514,7 +527,7 @@ const CITY_TEMPERATURE_LOCATIONS = {
 
 /**
  * One representative point per city/municipality, used to associate nearby
- * PAGASA AWS readings with city labels on the map.
+ * Public weather station readings with city labels on the map.
  */
 export const cities = Object.values(
   bfpStations.reduce((byCity, station) => {

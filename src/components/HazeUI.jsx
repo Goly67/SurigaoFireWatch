@@ -164,7 +164,7 @@ export function HazeLayer({ data, frame, focus }) {
       L.circleMarker([f.lat, f.lon], {
         renderer, stroke: false, interactive: false,
         radius: f.frp > 40 ? 3.4 : f.frp > 12 ? 2.6 : 1.9,
-        fillColor: f.frp > 40 ? '#D33A0A' : '#F4700A',
+        fillColor: f.frp > 40 ? '#E85D04' : '#FF7A00',
         fillOpacity: 0.85,
       }).addTo(group);
     }
@@ -228,7 +228,7 @@ export function HazeLayer({ data, frame, focus }) {
           key={`src-${i}`}
           center={[cl.lat, cl.lon]}
           radius={6 + cl.strength / 7}
-          pathOptions={{ color: '#DC6207', weight: 1.5, fillColor: '#F4700A', fillOpacity: 0.16 }}
+          pathOptions={{ color: '#0E2240', weight: 1.5, fillColor: '#2F6CFF', fillOpacity: 0.16 }}
         >
           <Tooltip direction="top">
             <strong>{cl.area}</strong>
@@ -274,19 +274,24 @@ export function HazeLayer({ data, frame, focus }) {
 
 /* --------------------------------------------------------- floating bits */
 
-/** A single on/off layer switch — local fires stay on the map either way. */
-export function HazeToggle({ on, onChange }) {
-  return (
-    <label className="toggle haze-toggle" title="Overlay Indonesia's fire and smoke forecast on the map">
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span className="toggle-track"><span className="toggle-knob" /></span>
-      <span className="haze-toggle-label">Indonesia haze</span>
-    </label>
-  );
-}
-
-export function NationalFireToggle({ on, onChange, loading = false, hotspots = [], fetchedAt = null, clockTick = 0 }) {
-  void clockTick;
+/** Map overlays and view controls — local fires stay on the map either way. */
+export function MapLayersMenu({
+  hazeOn,
+  onHazeChange,
+  droughtOn = false,
+  onDroughtChange = () => {},
+  nationalFireOn,
+  onNationalFireChange,
+  onResetDirection,
+  loading = false,
+  hotspots = [],
+  fetchedAt = null,
+}) {
+  const menuRef = useRef(null);
+  const toggleLayer = (handler) => (event) => {
+    handler(event.target.checked);
+    if (menuRef.current) menuRef.current.open = false;
+  };
   const formatAge = (minutes) => {
     if (minutes < 60) return `${minutes} min ago`;
     const hours = Math.round(minutes / 60);
@@ -302,19 +307,57 @@ export function NationalFireToggle({ on, onChange, loading = false, hotspots = [
     : null;
   const fetchAge = fetchedAt ? Math.max(1, Math.round((Date.now() - fetchedAt) / 60000)) : null;
   const status = loading
-    ? 'Refreshing PH fires'
+    ? 'Refreshing satellite detections'
     : newestDetectionAge != null
-      ? `PH fires · ${hotspots.length} live · newest ${formatAge(newestDetectionAge)}`
+      ? `${hotspots.length} detections · newest ${formatAge(newestDetectionAge)}`
       : fetchAge != null
-        ? `PH fires · ${hotspots.length} live · checked ${fetchAge} min ago`
-        : 'PH satellite fires';
+        ? `${hotspots.length} detections · checked ${fetchAge} min ago`
+        : 'Satellite fire detections';
 
   return (
-    <label className="toggle national-fire-toggle" title="Show recent satellite fire detections across the Philippines. The age shown here is for the newest hotspot anywhere in the country.">
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span className="toggle-track"><span className="toggle-knob" /></span>
-      <span className="haze-toggle-label">{status}</span>
-    </label>
+    <details className="map-layers-menu" ref={menuRef}>
+      <summary aria-label="Choose map layers">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="m3 6 6-3 6 3 6-3v15l-6 3-6-3-6 3V6Z" />
+          <path d="M9 3v15m6-12v15" />
+        </svg>
+        <span>Map layers</span>
+        <span className="map-layers-chevron" aria-hidden="true" />
+      </summary>
+      <div className="map-layers-flyout">
+        <label className="map-layer-option">
+          <input type="checkbox" checked={hazeOn} onChange={toggleLayer(onHazeChange)} />
+          <span className="map-layer-copy">
+            <strong>Indonesia haze</strong>
+            <small>Smoke forecast and fire sources</small>
+          </span>
+        </label>
+        <label className="map-layer-option">
+          <input type="checkbox" checked={droughtOn} onChange={toggleLayer(onDroughtChange)} />
+          <span className="map-layer-copy">
+            <strong>Global El Niño map</strong>
+            <small>Worldwide ocean-temperature anomalies + Philippine rainfall outlook</small>
+          </span>
+        </label>
+        <label className="map-layer-option">
+          <input type="checkbox" checked={nationalFireOn} onChange={toggleLayer(onNationalFireChange)} />
+          <span className="map-layer-copy">
+            <strong>PH satellite fires</strong>
+            <small>{status}</small>
+          </span>
+        </label>
+        <div className="map-layer-controls" aria-label="Globe map controls">
+          <button type="button" className="map-compass-reset" onClick={onResetDirection} aria-label="Reset map direction" title="Reset direction">
+            <svg viewBox="0 0 32 32" aria-hidden="true">
+              <circle cx="16" cy="16" r="12.25" />
+              <path className="compass-north" d="m16 5.5 4.2 11-4.2-2.3-4.2 2.3L16 5.5Z" />
+              <path className="compass-south" d="m16 26.5-4.2-11 4.2 2.3 4.2-2.3L16 26.5Z" />
+              <text x="16" y="11.3">N</text>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </details>
   );
 }
 
@@ -556,8 +599,7 @@ export function HazePanel({ haze, frame, onFocus, userLocation, userInCaraga }) 
 
       <footer className="disclaimer">
         Screening estimate only: hotspots mark fires, not smoke, and the smoke lines come from
-        wind forecasts without rain or plume-rise. For official haze advisories follow PAGASA and
-        the Department of Health.
+        wind forecasts and do not account for plume rise. Follow official weather and health advisories.
       </footer>
     </div>
   );
