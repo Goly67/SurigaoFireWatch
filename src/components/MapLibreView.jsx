@@ -498,6 +498,62 @@ function stationContactLines(station) {
   return [...fallbackContacts, `National emergency: ${NATIONAL_EMERGENCY_CONTACT}`];
 }
 
+function addStationMarkers(map) {
+  const stationPopups = [];
+  const markers = bfpStations.map((station) => {
+    const element = markerElement(`bfp-badge is-${station.kind}`, `${station.name} · ${station.city}`);
+    element.setAttribute('role', 'button');
+    element.tabIndex = 0;
+    element.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path class="badge-cross" d="M16 2l3.4 6.1L26 5.3l-2.7 6.6 6.1 3.4-6.1 3.4L26 25.3l-6.6-2.8L16 30l-3.4-7.5L6 25.3l2.7-6.6L2.6 15.3l6.1-3.4L6 5.3l6.6 2.8z"/><circle class="badge-core" cx="16" cy="16" r="6.4"/></svg><span class="bfp-text">BFP</span>';
+    const phonePopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      maxWidth: '260px',
+      offset: 22,
+      className: 'bfp-hover-popup',
+    });
+    stationPopups.push(phonePopup);
+    const phoneNode = document.createElement('div');
+    phoneNode.className = 'bfp-hover-card';
+    const stationName = document.createElement('strong');
+    stationName.textContent = station.name;
+    phoneNode.append(stationName);
+    for (const line of stationContactLines(station)) {
+      const contactLine = document.createElement('span');
+      contactLine.textContent = line;
+      phoneNode.append(contactLine);
+    }
+    const showPhone = () => {
+      phonePopup.setLngLat(asLngLat(station.location)).setDOMContent(phoneNode).addTo(map);
+    };
+    const hidePhone = () => phonePopup.remove();
+    element.addEventListener('mouseenter', showPhone);
+    element.addEventListener('mouseleave', hidePhone);
+    element.addEventListener('focus', showPhone);
+    element.addEventListener('blur', hidePhone);
+    element.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        element.click();
+      }
+    });
+    element.addEventListener('click', () => {
+      const details = [
+        station.name,
+        `${station.city} · ${station.region}`,
+        ...stationContactLines(station),
+      ].join('\n');
+      popupText(map, asLngLat(station.location), details);
+    });
+    return iconMarker(map, element, station.location);
+  });
+
+  return () => {
+    markers.forEach((marker) => marker.remove());
+    stationPopups.forEach((popup) => popup.remove());
+  };
+}
+
 function earthquakePopupNode(properties, onSelectEarthquake) {
   const card = document.createElement('div');
   card.className = 'earthquake-popup';
@@ -625,6 +681,7 @@ function MapLibreView({
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
+    const isMobile = window.matchMedia('(max-width: 1024px)').matches;
     const instance = new maplibregl.Map({
       container: containerRef.current,
       style: STYLE_URL,
@@ -637,6 +694,9 @@ function MapLibreView({
         compact: true,
       },
       cooperativeGestures: false,
+      maxTileCacheSize: isMobile ? 64 : 128,
+      maxTileCacheZoomLevels: isMobile ? 2 : 4,
+      fadeDuration: 0,
     });
     mapRef.current = instance;
     setMap(instance);
@@ -1053,60 +1113,14 @@ function MapLibreView({
   }, [map, loaded, earthquakeMode, selectedEarthquake?.id]);
 
   useEffect(() => {
+    if (!map || !loaded || earthquakeMode || !showStations) return undefined;
+    return addStationMarkers(map);
+  }, [map, loaded, earthquakeMode, showStations]);
+
+  useEffect(() => {
     if (!map || !loaded) return undefined;
     if (earthquakeMode) return undefined;
     const markers = [];
-    const stationPopups = [];
-    const currentStations = showStations
-      ? bfpStations.map((station) => {
-        const element = markerElement(`bfp-badge is-${station.kind}`, `${station.name} · ${station.city}`);
-        element.setAttribute('role', 'button');
-        element.tabIndex = 0;
-        element.innerHTML = '<svg viewBox="0 0 32 32" aria-hidden="true"><path class="badge-cross" d="M16 2l3.4 6.1L26 5.3l-2.7 6.6 6.1 3.4-6.1 3.4L26 25.3l-6.6-2.8L16 30l-3.4-7.5L6 25.3l2.7-6.6L2.6 15.3l6.1-3.4L6 5.3l6.6 2.8z"/><circle class="badge-core" cx="16" cy="16" r="6.4"/></svg><span class="bfp-text">BFP</span>';
-        const phonePopup = new maplibregl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          maxWidth: '260px',
-          offset: 22,
-          className: 'bfp-hover-popup',
-        });
-        stationPopups.push(phonePopup);
-        const phoneNode = document.createElement('div');
-        phoneNode.className = 'bfp-hover-card';
-        const stationName = document.createElement('strong');
-        stationName.textContent = station.name;
-        phoneNode.append(stationName);
-        for (const line of stationContactLines(station)) {
-          const contactLine = document.createElement('span');
-          contactLine.textContent = line;
-          phoneNode.append(contactLine);
-        }
-        const showPhone = () => {
-          phonePopup.setLngLat(asLngLat(station.location)).setDOMContent(phoneNode).addTo(map);
-        };
-        const hidePhone = () => phonePopup.remove();
-        element.addEventListener('mouseenter', showPhone);
-        element.addEventListener('mouseleave', hidePhone);
-        element.addEventListener('focus', showPhone);
-        element.addEventListener('blur', hidePhone);
-        element.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            element.click();
-          }
-        });
-        element.addEventListener('click', () => {
-          const details = [
-            station.name,
-            `${station.city} · ${station.region}`,
-            ...stationContactLines(station),
-          ].join('\n');
-          popupText(map, asLngLat(station.location), details);
-        });
-        return iconMarker(map, element, station.location);
-      })
-      : [];
-    markers.push(...currentStations);
     for (const incident of incidents) {
       const currentStatus = incidentStateMap[incident.id] ?? 'active';
       if (currentStatus === 'fire_out') continue;
@@ -1115,20 +1129,23 @@ function MapLibreView({
       element.addEventListener('click', () => onSelect(incident.id));
       markers.push(marker);
     }
-    if (active && selected && live) {
-      const plume = markerElement('plume-wrap', `Wind direction ${live.headBearing}°`);
-      plume.innerHTML = `<span class="plume" style="--head:${live.headBearing}deg; --intensity:${Math.min(selected.alarm.level / 5, 1)}">${Array.from({ length: 4 }, (_, i) => `<span class="smoke" style="--i:${i}"></span>`).join('')}${Array.from({ length: 7 }, (_, i) => `<span class="ember" style="--i:${i}"></span>`).join('')}</span>`;
-      markers.push(iconMarker(map, plume, selected.location));
-    }
-    if (userLocation) {
-      const user = markerElement('user-location-marker', 'Your location');
-      markers.push(iconMarker(map, user, userLocation));
-    }
-    return () => {
-      markers.forEach((marker) => marker.remove());
-      stationPopups.forEach((popup) => popup.remove());
-    };
-  }, [map, loaded, incidents, incidentStateMap, selectedId, onSelect, showStations, cityTemps, nationalFireMode, active, selected, live, userLocation, earthquakeMode]);
+    return () => markers.forEach((marker) => marker.remove());
+  }, [map, loaded, incidents, incidentStateMap, selectedId, onSelect, earthquakeMode]);
+
+  useEffect(() => {
+    if (!map || !loaded || earthquakeMode || !active || !selected || !live) return undefined;
+    const plume = markerElement('plume-wrap', `Wind direction ${live.headBearing}°`);
+    plume.innerHTML = `<span class="plume" style="--head:${live.headBearing}deg; --intensity:${Math.min(selected.alarm.level / 5, 1)}">${Array.from({ length: 4 }, (_, i) => `<span class="smoke" style="--i:${i}"></span>`).join('')}${Array.from({ length: 7 }, (_, i) => `<span class="ember" style="--i:${i}"></span>`).join('')}</span>`;
+    const marker = iconMarker(map, plume, selected.location);
+    return () => marker.remove();
+  }, [map, loaded, earthquakeMode, active, selected, live]);
+
+  useEffect(() => {
+    if (!map || !loaded || earthquakeMode || !userLocation) return undefined;
+    const user = markerElement('user-location-marker', 'Your location');
+    const marker = iconMarker(map, user, userLocation);
+    return () => marker.remove();
+  }, [map, loaded, earthquakeMode, userLocation]);
 
   useEffect(() => {
     if (!map || !loaded) return;

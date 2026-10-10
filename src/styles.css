@@ -131,6 +131,15 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .maplibre-map::before { animation: none; }
 }
+@media (max-width: 1024px) {
+  .maplibre-map::before { animation: none; }
+  .maplibre-map .fire-ring,
+  .maplibre-map .fire-glow,
+  .maplibre-map .fire-smoke-puff,
+  .maplibre-map .user-location-marker::before { animation: none; }
+  .maplibre-map .fire-smoke,
+  .maplibre-map .plume { display: none; }
+}
 .maplibre-map .maplibregl-ctrl-bottom-right { right: 12px; bottom: 18px; }
 .maplibre-map .maplibregl-ctrl-group { overflow: hidden; border: 1px solid rgba(14, 34, 64, 0.16); border-radius: 12px; box-shadow: 0 8px 24px rgba(14, 34, 64, 0.18); }
 .maplibre-map .maplibregl-ctrl-group button { width: 38px; height: 38px; }
