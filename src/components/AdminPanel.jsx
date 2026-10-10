@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { CircleMarker, MapContainer, TileLayer } from 'react-leaflet';
 import {
   GoogleAuthProvider,
+  getAdditionalUserInfo,
   onAuthStateChanged,
   signInWithPopup,
   signOut,
+  updateProfile,
 } from 'firebase/auth';
 import { auth } from '../lib/firebase.js';
 import { enableAlarmSounds } from '../lib/alarmAudio.js';
@@ -165,7 +167,12 @@ export default function AdminPanel({
     try {
       setLoginError('');
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const googleName = getAdditionalUserInfo(result)?.profile?.name;
+      if (typeof googleName === 'string' && googleName.trim()) {
+        await updateProfile(result.user, { displayName: googleName });
+        setUser(result.user);
+      }
     } catch (error) {
       setLoginError(error.message || 'Unable to sign in with Google.');
     }
