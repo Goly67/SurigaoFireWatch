@@ -53,24 +53,6 @@ export default function About() {
         </p>
       </header>
 
-      <section className="about-team" aria-labelledby="about-team-title">
-        <h3 id="about-team-title">Meet the team</h3>
-        <div className="about-team-grid">
-          <article className="sa-card about-team-member">
-            <strong>Sam Yujoco</strong>
-            <span>CEO</span>
-          </article>
-          <article className="sa-card about-team-member">
-            <strong>James Plaza</strong>
-            <span>CTO</span>
-          </article>
-          <article className="sa-card about-team-member">
-            <strong>Mercy Alberca</strong>
-            <span>CMO</span>
-          </article>
-        </div>
-      </section>
-
       <section className="about-features" aria-label="SentraLERT features">
         {FEATURES.map((feature) => (
           <article className="sa-card about-feature" key={feature.title}>
