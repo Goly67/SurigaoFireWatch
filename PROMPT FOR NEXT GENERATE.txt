@@ -1,0 +1,1 @@
+Merge the earthquake monitoring to the Surigao Fire watch, add the legends, and dont add the admin panel from teh earthquake monitor to there, also dont add announcements. dont add how many people are viewing, just put add notifications too, and the showing of earthquake fault lines then the earthquake data like the magnitude and from phivolcs.
