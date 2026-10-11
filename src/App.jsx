@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import MapView from './components/MapLibreView.jsx';
+import MapView from './components/MapView.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import ReportForm from './components/ReportForm.jsx';
 import IncidentPanel from './components/IncidentPanel.jsx';
@@ -9,21 +9,12 @@ import Timeline from './components/Timeline.jsx';
 import HistoricalFireView from './components/HistoricalFireView.jsx';
 import NotificationCenter from './components/NotificationCenter.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
-import GeoAlerts from './components/GeoAlerts.jsx';
-import SafetyHub from './components/SafetyHub.jsx';
-import Analytics from './components/Analytics.jsx';
-import About from './components/About.jsx';
-import ArcGISPanel from './components/ArcGISPanel.jsx';
-import EarthquakeInfo from './components/EarthquakeInfo.jsx';
-import { LOGO_SRC, RailNav } from './components/Brand.jsx';
 import {
-  HazePanel, HazeTimeline, MapLayersMenu, useHaze,
+  HazePanel, HazeTimeline, HazeToggle, NationalFireToggle, useHaze,
 } from './components/HazeUI.jsx';
-import DroughtWatchPanel, { useDroughtWatch } from './components/DroughtWatch.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchLocalWeather, fetchCityTemperatures } from './lib/localWeather.js';
-import { fetchEarthquakeEvents } from './lib/earthquakes.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
 import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
@@ -39,7 +30,6 @@ import {
 
 // Wind and the Indonesia haze forecast both refresh on this cadence.
 const REFRESH_MS = 2 * 60 * 1000;
-const WEATHER_REFRESH_MS = 60 * 1000;
 
 export default function App() {
   const [reports, setReports] = useState([]);
@@ -50,22 +40,14 @@ export default function App() {
   const [wind, setWind] = useState(FALLBACK_WIND);
   const [localWeather, setLocalWeather] = useState(null);
   const [cityTemps, setCityTemps] = useState([]);
-  const [earthquakeMode, setEarthquakeMode] = useState(false);
-  const [earthquakeEvents, setEarthquakeEvents] = useState([]);
-  const [latestEarthquake, setLatestEarthquake] = useState(null);
-  const [selectedEarthquakeId, setSelectedEarthquakeId] = useState(null);
-  const [earthquakeReportOpen, setEarthquakeReportOpen] = useState(false);
-  const [earthquakeLoaded, setEarthquakeLoaded] = useState(false);
-  const [earthquakeError, setEarthquakeError] = useState('');
   const [selectedId, setSelectedId] = useState(null);
-  const [view, setView] = useState('list');
+  const [view, setView] = useState('list'); // list | report | levels | historical
   const [pendingLocation, setPendingLocation] = useState(null);
   const [horizonMinutes, setHorizonMinutes] = useState(30);
   const [showStations, setShowStations] = useState(false);
-  const [railOpen, setRailOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(true);
   const [tick, setTick] = useState(0);
   const [hazeOn, setHazeOn] = useState(false); // haze is a map layer, not a separate mode
-  const [droughtMode, setDroughtMode] = useState(false);
   const [hazeFrame, setHazeFrame] = useState(0); // 0..24, 3 h apart
   const [hazeFocus, setHazeFocus] = useState(null);
   const [nationalFireMode, setNationalFireMode] = useState(false);
@@ -81,21 +63,13 @@ export default function App() {
   const [incidentStatusError, setIncidentStatusError] = useState('');
   const [incidentStatusMap, setIncidentStatusMap] = useState(() => readIncidentStatusMap());
   const [historicalOverlay, setHistoricalOverlay] = useState(null);
-  const [arcgisLayer, setArcgisLayer] = useState(null);
 
   const appRef = useRef(null);
-  const mapRef = useRef(null);
   const recentAdminReportIdsRef = useRef(new Set());
   const reportsRef = useRef(reports);
   reportsRef.current = reports;
   const userLocationRef = useRef(userLocation);
   userLocationRef.current = userLocation;
-  const handleMapReady = useCallback((map) => {
-    mapRef.current = map;
-  }, []);
-  const resetMapDirection = useCallback(() => {
-    mapRef.current?.easeTo({ pitch: droughtMode ? 0 : 42, bearing: 0, duration: 500 });
-  }, [droughtMode]);
   // Rounded to ~1 km so ordinary GPS jitter doesn't retrigger the weather
   // fetch below on every watchPosition tick — only a real move does, and
   // going null the instant location is turned off.
@@ -104,16 +78,6 @@ export default function App() {
     : null;
 
   const haze = useHaze(hazeOn);
-  const droughtWatch = useDroughtWatch(droughtMode);
-
-  useEffect(() => {
-    if (!railOpen) return undefined;
-    const closeOnEscape = (event) => {
-      if (event.key === 'Escape') setRailOpen(false);
-    };
-    window.addEventListener('keydown', closeOnEscape);
-    return () => window.removeEventListener('keydown', closeOnEscape);
-  }, [railOpen]);
 
   // Firebase Realtime Database when configured, in-memory sample data
   // otherwise — reportsStore.js hides which one this is.
@@ -160,29 +124,6 @@ export default function App() {
   useEffect(() => subscribeToPostApprovals(setPostApprovals), []);
 
   useEffect(() => {
-    if (!earthquakeMode) return undefined;
-    let cancelled = false;
-    const refresh = () => fetchEarthquakeEvents()
-      .then((events) => {
-        if (cancelled) return;
-        setEarthquakeEvents(events);
-        setLatestEarthquake(events[0] ?? null);
-        setEarthquakeLoaded(true);
-        setEarthquakeError('');
-      })
-      .catch((error) => {
-        if (cancelled) return;
-        setEarthquakeError(error instanceof Error ? error.message : 'Earthquake feed unavailable.');
-      });
-    refresh();
-    const id = setInterval(refresh, 60 * 1000);
-    return () => {
-      cancelled = true;
-      clearInterval(id);
-    };
-  }, [earthquakeMode]);
-
-  useEffect(() => {
     let cancelled = false;
     fetchWind(undefined, true).then((w) => !cancelled && setWind(w));
     const id = setInterval(() => {
@@ -194,19 +135,19 @@ export default function App() {
     };
   }, []);
 
-    // Public weather station readings load independently of device location.
+    // Public PAGASA station readings load independently of device location.
   useEffect(() => {
     let cancelled = false;
     const refresh = () => fetchCityTemperatures(cities).then((rows) => !cancelled && setCityTemps(rows));
     refresh();
-      const id = setInterval(refresh, WEATHER_REFRESH_MS);
+    const id = setInterval(refresh, 10 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
   }, []);
 
-  // The person's own temperature reading only exists while their
+  // The person's own temperature/rain reading only exists while their
   // device is actually sharing a location — it disappears the moment
   // userLocation does, and it's never sent anywhere shared.
   useEffect(() => {
@@ -216,9 +157,9 @@ export default function App() {
     }
     let cancelled = false;
     const refresh = () =>
-      fetchLocalWeather(userLocationRef.current).then((w) => !cancelled && setLocalWeather(w));
+      fetchLocalWeather(userLocationRef.current, true).then((w) => !cancelled && setLocalWeather(w));
     refresh();
-    const id = setInterval(refresh, WEATHER_REFRESH_MS);
+    const id = setInterval(refresh, REFRESH_MS);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -279,8 +220,6 @@ export default function App() {
     return Number.isFinite(detectedAt) && Date.now() - detectedAt <= 30 * 60 * 1000;
   });
   const selected = incidents.find((i) => i.id === selectedId) ?? null;
-  const selectedEarthquake = earthquakeEvents.find((event) => event.id === selectedEarthquakeId)
-    ?? latestEarthquake;
   const nearbyIncident = userLocation
     ? incidents
       .map((incident) => ({ incident, distance: distanceMeters(userLocation, incident.location) }))
@@ -356,15 +295,10 @@ export default function App() {
   // every haze-timeline tick — which would defeat that memoization and
   // force every fire pin to re-render for no reason.
   const selectIncident = useCallback((id) => {
-    setDroughtMode(false);
     setView('list');
     setSelectedId(id);
     setHorizonMinutes(30);
     setRailOpen(true);
-  }, []);
-  const selectEarthquake = useCallback((id) => {
-    setSelectedEarthquakeId(id);
-    setEarthquakeReportOpen(true);
   }, []);
 
   function submitReport(report) {
@@ -390,7 +324,6 @@ export default function App() {
   function toggleHaze(on) {
     setHazeOn(on);
     if (on) {
-      setDroughtMode(false);
       setNationalFireMode(false);
       setShowStations(false);
     } else {
@@ -409,7 +342,6 @@ export default function App() {
     setShowStations(!on);
     if (on) {
       setHazeOn(false);
-      setDroughtMode(false);
       setView('list');
       setSelectedId(null);
       setPendingLocation(null);
@@ -417,20 +349,7 @@ export default function App() {
     }
   }
 
-  function toggleDroughtMode(on) {
-    setDroughtMode(on);
-    setShowStations(!on);
-    if (on) {
-      setHazeOn(false);
-      setNationalFireMode(false);
-      setView('list');
-      setSelectedId(null);
-      setPendingLocation(null);
-      setRailOpen(false);
-    }
-  }
-
-  const reporting = !hazeOn && !droughtMode && view === 'report';
+  const reporting = !hazeOn && view === 'report';
   const showHazeTimeline = hazeOn && Boolean(haze.data?.frames);
   const selectedIsActive = selected
     && (incidentStatusMap[selected.id] ?? 'active') === 'active';
@@ -460,11 +379,7 @@ export default function App() {
   }, [timelineVisible, hazeOn]);
 
   let rail;
-  if (droughtMode) {
-    rail = <DroughtWatchPanel watch={droughtWatch} onFocus={(location) => {
-      mapRef.current?.flyTo({ center: [location[1], location[0]], zoom: 7, duration: 800 });
-    }} />;
-  } else if (hazeOn) {
+  if (hazeOn) {
     rail = (
       <HazePanel
         haze={haze}
@@ -487,25 +402,6 @@ export default function App() {
         }}
       />
     );
-  } else if (earthquakeMode) {
-    rail = (
-      <EarthquakeInfo
-        events={earthquakeEvents}
-        selectedEvent={selectedEarthquake}
-        loaded={earthquakeLoaded}
-        error={earthquakeError}
-        incidents={activeIncidents}
-        onSelect={selectEarthquake}
-      />
-    );
-  } else if (view === 'safety') {
-    rail = <SafetyHub />;
-  } else if (view === 'analytics') {
-    rail = <Analytics incidents={allIncidents} reports={reports} incidentStatusMap={incidentStatusMap} />;
-  } else if (view === 'about') {
-    rail = <About />;
-  } else if (view === 'arcgis') {
-    rail = <ArcGISPanel layer={arcgisLayer} onLayer={setArcgisLayer} incidents={allIncidents} mapRef={mapRef} />;
   } else if (view === 'levels') {
     rail = (
       <WarningSystem
@@ -540,7 +436,6 @@ export default function App() {
   } else {
     rail = (
       <Sidebar
-        topSlot={<GeoAlerts incidents={activeIncidents} userLocation={userLocation} onSelect={selectIncident} />}
         incidents={activeIncidents}
         wind={wind}
         userLocation={userLocation}
@@ -556,80 +451,51 @@ export default function App() {
         }}
         onOpenLevels={() => setView('levels')}
         onOpenHistory={() => setView('historical')}
-        earthquakeMode={earthquakeMode}
-        onToggleEarthquake={() => {
-          const nextEnabled = !earthquakeMode;
-          if (nextEnabled) {
-            setHazeOn(false);
-            setDroughtMode(false);
-            setNationalFireMode(false);
-            setSelectedId(null);
-            setPendingLocation(null);
-          }
-          setEarthquakeMode(nextEnabled);
-        }}
       />
     );
   }
 
-  if (earthquakeReportOpen) {
-    return (
-      <main className="earthquake-report-screen">
-        <EarthquakeInfo
-          fullscreen
-          events={earthquakeEvents}
-          selectedEvent={selectedEarthquake}
-          loaded={earthquakeLoaded}
-          error={earthquakeError}
-          incidents={activeIncidents}
-          onSelect={selectEarthquake}
-          onBack={() => setEarthquakeReportOpen(false)}
-        />
-      </main>
-    );
-  }
-
   return (
-    <div ref={appRef} className={`app ${railOpen ? 'has-category-open' : 'rail-collapsed'} ${timelineVisible ? 'has-playback' : ''} ${hazeOn ? 'is-haze-active' : ''}`}>
+    <div ref={appRef} className={`app ${railOpen ? '' : 'rail-collapsed'} ${hazeOn ? 'is-haze-active' : ''}`}>
+      <aside className="rail" key={hazeOn ? 'haze' : reporting ? 'report' : view + (selectedId ?? '')}>
+        {rail}
+      </aside>
+
+      <button
+        className="rail-handle"
+        onClick={() => setRailOpen((o) => !o)}
+        aria-expanded={railOpen}
+        aria-label={railOpen ? 'Hide panel' : 'Show panel'}
+        title={railOpen ? 'Hide panel' : 'Show panel'}
+      >
+        <span className="rail-handle-arrow" />
+      </button>
+
       <main className="stage">
-        {!earthquakeMode && (
-          <MapLayersMenu
-            hazeOn={hazeOn}
-            onHazeChange={toggleHaze}
-            droughtOn={droughtMode}
-            onDroughtChange={toggleDroughtMode}
-            nationalFireOn={nationalFireMode}
-            onNationalFireChange={toggleNationalFireMode}
-            onResetDirection={resetMapDirection}
-            loading={nationalFireLoading}
-            hotspots={nationalFireHotspots}
-            fetchedAt={nationalFireFetchedAt}
-          />
-        )}
+        <HazeToggle on={hazeOn} onChange={toggleHaze} />
+        <NationalFireToggle
+          on={nationalFireMode}
+          onChange={toggleNationalFireMode}
+          loading={nationalFireLoading}
+          hotspots={nationalFireHotspots}
+          fetchedAt={nationalFireFetchedAt}
+          clockTick={tick}
+        />
 
-        {!earthquakeMode && LOGO_SRC && (
-          <div className="map-brand-logo-frame" aria-hidden="true">
-            <img className="map-brand-logo" src={LOGO_SRC} alt="" draggable="false" />
-          </div>
-        )}
-
-        {!earthquakeMode && (
-          <NotificationCenter
-            incidents={activeIncidents}
-            reports={reports}
-            onSelect={(id) => {
-              setHazeOn(false);
-              setDroughtMode(false);
-              setView('list');
-              setSelectedId(id);
-              setHorizonMinutes(30);
-              setRailOpen(true);
-            }}
-            onOpenAdmin={() => {
-              setAdminOpen(true);
-            }}
-          />
-        )}
+        <NotificationCenter
+          incidents={activeIncidents}
+          reports={reports}
+          onSelect={(id) => {
+            setHazeOn(false);
+            setView('list');
+            setSelectedId(id);
+            setHorizonMinutes(30);
+            setRailOpen(true);
+          }}
+          onOpenAdmin={() => {
+            setAdminOpen(true);
+          }}
+        />
 
         {adminOpen && (
           <AdminPanel
@@ -643,7 +509,7 @@ export default function App() {
           />
         )}
 
-        {!usingFirebase && !hazeOn && !droughtMode && !earthquakeMode && (
+        {!usingFirebase && !hazeOn && (
           <div className="db-flag" title="Copy .env.example to .env.local with your Firebase project to go live">
             Sample data — connect Firebase to go live
           </div>
@@ -664,8 +530,6 @@ export default function App() {
           haze={haze.data}
           hazeFrame={hazeFrame}
           hazeFocus={hazeFocus}
-          droughtMode={droughtMode}
-          droughtOutlook={droughtWatch.outlook}
           userLocation={userLocation}
           userLocationAccuracy={locationAccuracy}
           localWeather={localWeather}
@@ -673,15 +537,6 @@ export default function App() {
           historicalOverlay={view === 'historical' ? historicalOverlay : null}
           nationalFireMode={nationalFireMode}
           nationalFireHotspots={nationalFireHotspots}
-          arcgisLayer={arcgisLayer}
-          earthquake={latestEarthquake}
-          selectedEarthquake={selectedEarthquake}
-          earthquakeEvents={earthquakeEvents}
-          earthquakeLoaded={earthquakeLoaded}
-          earthquakeError={earthquakeError}
-          earthquakeMode={earthquakeMode}
-          onSelectEarthquake={selectEarthquake}
-          onMapReady={handleMapReady}
         />
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}
@@ -698,54 +553,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {railOpen && (
-        <div className="category-modal-backdrop" role="presentation" onClick={() => setRailOpen(false)}>
-          <section
-            className="category-modal"
-            role="dialog"
-            aria-modal="false"
-            aria-labelledby="category-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <header className="category-modal-heading">
-              <div>
-                <span className="category-modal-kicker">SENTRALERT · CATEGORY</span>
-                <h2 id="category-modal-title">
-                  {droughtMode ? 'El Niño watch'
-                    : view === 'safety' ? 'Safety'
-                    : view === 'analytics' ? 'Analytics'
-                      : view === 'arcgis' ? 'ArcGIS'
-                        : view === 'about' ? 'About'
-                          : 'Alerts'}
-                </h2>
-              </div>
-              <button type="button" className="icon-button" onClick={() => setRailOpen(false)} aria-label="Close category">
-                <span className="icon-close" aria-hidden="true" />
-              </button>
-            </header>
-            <div className="category-modal-content" key={droughtMode ? 'drought' : hazeOn ? 'haze' : reporting ? 'report' : view + (selectedId ?? '')}>
-              {rail}
-            </div>
-          </section>
-        </div>
-      )}
-
-      {!droughtMode && (
-        <RailNav
-          active={railOpen
-            ? (['safety', 'analytics', 'arcgis', 'about'].includes(view) && !hazeOn ? view : 'alerts')
-            : null}
-          onChange={(tab) => {
-            setHazeOn(false);
-            setDroughtMode(false);
-            setEarthquakeMode(false);
-            setPendingLocation(null);
-            setRailOpen(true);
-            if (tab === 'alerts') { setView('list'); setSelectedId(null); } else { setView(tab); }
-          }}
-        />
-      )}
 
       {nearbyIncident && evacuationIncidentId && createPortal(
         <div className="evacuation-backdrop" role="presentation">

@@ -1,7 +1,5 @@
 const EARTH_RADIUS_M = 6371000;
 
-export const USER_LOCATION_PERIMETER_M = 100;
-
 export const toRad = (deg) => (deg * Math.PI) / 180;
 export const toDeg = (rad) => (rad * 180) / Math.PI;
 

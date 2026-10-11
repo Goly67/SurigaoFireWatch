@@ -1,11 +1,7 @@
 import { distanceMeters } from './geo.js';
 
-const STATION_CACHE_MS = 60 * 1000;
-// PAGASA station feeds can lag by several hours, especially outside the main
-// metro areas. Keep a full daily window so the map still shows the latest valid
-// reading instead of dropping Surigao City just because the last update was
-// earlier in the day.
-const MAX_OBSERVATION_AGE_MS = 24 * 60 * 60 * 1000;
+const STATION_CACHE_MS = 5 * 60 * 1000;
+const MAX_OBSERVATION_AGE_MS = 6 * 60 * 60 * 1000;
 const MAX_CITY_STATION_DISTANCE_M = 50_000;
 const MAX_LOCAL_STATION_DISTANCE_M = 100_000;
 
@@ -15,15 +11,6 @@ let stationRequest = null;
 function parseMeasurement(value) {
   const match = String(value ?? '').match(/-?\d+(?:\.\d+)?/);
   return match ? Number(match[0]) : null;
-}
-
-export function temperatureFeel(tempC) {
-  if (typeof tempC !== 'number' || !Number.isFinite(tempC)) return 'weather unavailable';
-  if (tempC < 20) return 'cold today';
-  if (tempC < 24) return 'a bit cool today';
-  if (tempC < 28) return 'mild today';
-  if (tempC < 33) return 'warm today';
-  return 'hot today';
 }
 
 function normalizePagasaStations(data) {
@@ -44,6 +31,7 @@ function normalizePagasaStations(data) {
 
     const station = {
       id: `pagasa-${row.site_id}-${lat.toFixed(4)}-${lng.toFixed(4)}`,
+      siteName: String(row.site_name ?? 'PAGASA AWS').trim(),
       location: [lat, lng],
       tempC,
       rainMm: parseMeasurement(row.precipitation),
@@ -69,7 +57,7 @@ async function fetchPagasaStations(forceRefresh = false) {
     headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' },
   })
     .then((response) => {
-      if (!response.ok) throw new Error(`Weather service returned ${response.status}`);
+      if (!response.ok) throw new Error(`PAGASA returned ${response.status}`);
       return response.json();
     })
     .then((data) => {
@@ -104,6 +92,7 @@ export async function fetchCityTemperatures(cities, forceRefresh = false) {
       cityStations.set(closestCity.id, {
         ...station,
         name: closestCity.name,
+        stationName: station.siteName,
         distance: closestDistance,
       });
     }
@@ -130,6 +119,8 @@ export async function fetchLocalWeather([lat, lng], forceRefresh = false) {
     tempC: nearest.tempC,
     rainMm: nearest.rainMm,
     humidity: nearest.humidity,
+    source: 'PAGASA',
+    siteName: nearest.siteName,
     observedAt: nearest.observedAt,
   };
 }
