@@ -56,7 +56,7 @@ export default function App() {
   const [fireRiskSpots, setFireRiskSpots] = useState([]);
   const [fireRiskError, setFireRiskError] = useState('');
   const [fireRiskUpdatedAt, setFireRiskUpdatedAt] = useState(null);
-  const [sstMapDate] = useState(() => new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
+  const [sstTileStatus, setSstTileStatus] = useState('idle');
   const [userLocation, setUserLocation] = useState(null);
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
@@ -347,6 +347,7 @@ export default function App() {
 
   function toggleElNinoWatch(on) {
     setElNinoWatchOn(on);
+    setSstTileStatus(on ? 'loading' : 'idle');
     setShowStations(!on);
     if (on) {
       setHazeOn(false);
@@ -499,15 +500,29 @@ export default function App() {
             </button>
             {elNinoLegendVisible && (
               <div id="el-nino-legend" className="el-nino-legend">
-                <strong>Sea Surface Temperature Anomaly</strong>
-                <span>NASA GHRSST MUR · daily, about 1 km · {sstMapDate}</span>
-                <div className="sst-scale" aria-label="Sea surface temperature anomaly scale from minus 5 to plus 5 degrees Celsius" />
-                <div className="sst-scale-labels"><span>≤ −5°C</span><span>0°C</span><span>≥ +5°C</span></div>
-                <small>Ocean anomaly is an El Niño indicator, not land temperature. The map opens over the equatorial Pacific Niño 3.4 region; zoom out for the global view.</small>
-                <small>On the normal map, Surigao’s circle marks the city screening area. Its weather comes from a coarser model grid; it is not a predicted ignition point.</small>
-                {fireRiskError && <small className="el-nino-error">Fire-weather data unavailable: {fireRiskError}</small>}
-                <small className="risk-circles"><i className="risk-low" /> Lower relative index <i className="risk-elevated" /> Elevated <i className="risk-high" /> Higher</small>
-                {fireRiskSpots.length > 0 && fireRiskUpdatedAt && <small>Surigao City weather grid · updated {new Date(fireRiskUpdatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</small>}
+                <header className="el-nino-legend-head">
+                  <span className="el-nino-legend-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M3 14c3-5 6 5 9 0s6 5 9 0M3 9c3-5 6 5 9 0s6 5 9 0" /></svg>
+                  </span>
+                  <span className="el-nino-legend-title"><small>OCEAN CLIMATE LAYER</small><strong>Sea-surface temperature anomaly</strong></span>
+                </header>
+                <div className="el-nino-legend-source">
+                  <a href="https://coralreefwatch.noaa.gov/product/5km/index_5km_ssta.php" target="_blank" rel="noreferrer">NOAA Coral Reef Watch · satellite data</a>
+                  <b>Daily · 5 km</b>
+                </div>
+                <div className="el-nino-scale-block">
+                  <div className="sst-scale" aria-label="Sea surface temperature anomaly color scale from minus 5 to plus 5 degrees Celsius" />
+                  <div className="sst-scale-labels"><span>≤ −5°C</span><span>0°C</span><span>≥ +5°C</span></div>
+                </div>
+                <p className="el-nino-legend-note">Colors show satellite-derived nighttime sea-surface temperatures compared with NOAA’s long-term average. Warm equatorial Pacific anomalies are one indicator used to monitor El Niño.</p>
+                <small className="el-nino-legend-foot">Ocean data only · not land temperature or a fire prediction</small>
+                {sstTileStatus !== 'idle' && (
+                  <small className={`el-nino-layer-status is-${sstTileStatus}`} role="status">
+                    {sstTileStatus === 'loading' && 'Loading NOAA daily satellite anomaly…'}
+                    {sstTileStatus === 'ready' && 'NOAA satellite sea-surface anomaly layer is loaded'}
+                    {sstTileStatus === 'error' && 'NOAA imagery could not load. Open the source map to check availability.'}
+                  </small>
+                )}
               </div>
             )}
           </>
@@ -568,7 +583,7 @@ export default function App() {
           historicalOverlay={view === 'historical' ? historicalOverlay : null}
           elNinoMode={elNinoWatchOn}
           fireRiskSpots={fireRiskSpots}
-          sstMapDate={sstMapDate}
+          onSstTileStatusChange={setSstTileStatus}
         />
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}

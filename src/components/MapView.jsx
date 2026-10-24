@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Pane, Tooltip, Popup, ZoomControl, useMap, useMapEvents,
+  MapContainer, TileLayer, WMSTileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Pane, Tooltip, Popup, ZoomControl, useMap, useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { SURIGAO_CENTER } from '../data/surigao.js';
@@ -13,6 +13,12 @@ import { HazeLayer } from './HazeUI.jsx';
 const HAZE_BOUNDS = [[-9.5, 96], [21.5, 144]];
 const MOBILE_HAZE_BOUNDS = [[-8.5, 108], [20.5, 132]];
 const PHILIPPINES_BOUNDS = [[4.5, 116], [21.5, 127.5]];
+const EL_NINO_WMS_PARAMS = {
+  layers: 'CRW_sst_anom_v1_0:sea_surface_temperature_anomaly',
+  format: 'image/png',
+  transparent: true,
+  version: '1.3.0',
+};
 
 /** Glyphs drawn inline so they can be tinted and animated with CSS. */
 const flameSvg = `
@@ -274,6 +280,29 @@ function ElNinoViewport({ active }) {
     return () => map.off('resize', fitOneWorld);
   }, [active, map]);
   return null;
+}
+
+function ElNinoLayer({ onStatusChange }) {
+  useEffect(() => {
+    onStatusChange('loading');
+  }, [onStatusChange]);
+
+  return (
+    <WMSTileLayer
+      className="sst-anomaly-tiles"
+      url="https://oceanwatch.pifsc.noaa.gov/erddap/wms/CRW_sst_anom_v1_0/request"
+      params={EL_NINO_WMS_PARAMS}
+      opacity={0.86}
+      zIndex={350}
+      maxZoom={12}
+      eventHandlers={{
+        loading: () => onStatusChange('loading'),
+        tileload: () => onStatusChange('ready'),
+        tileerror: () => onStatusChange('error'),
+      }}
+      attribution='SST anomaly: <a href="https://coralreefwatch.noaa.gov/product/5km/index_5km_ssta.php" target="_blank" rel="noreferrer">NOAA Coral Reef Watch · daily 5 km satellite anomaly</a>'
+    />
+  );
 }
 
 function riskColor(score) {
@@ -582,7 +611,7 @@ export default function MapView({
   historicalOverlay = null,
   elNinoMode = false,
   fireRiskSpots = [],
-  sstMapDate,
+  onSstTileStatusChange = () => {},
 }) {
   const selected = incidents.find((i) => i.id === selectedId);
   const selectedState = selected ? incidentStateMap[selected.id] ?? 'active' : 'active';
@@ -615,16 +644,9 @@ export default function MapView({
       <HazeViewport active={hazeMode} />
       <ElNinoViewport active={elNinoMode} />
       {elNinoMode && (
-        <TileLayer
-          className="sst-anomaly-tiles"
-          url={`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature_Anomalies/default/${sstMapDate}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`}
-          maxNativeZoom={13}
-          maxZoom={12}
-          noWrap={false}
-          opacity={0.78}
-          zIndex={350}
-          attribution='SST anomaly: <a href="https://earthdata.nasa.gov/data/instruments/gibs">NASA EOSDIS GIBS · GHRSST MUR</a>'
-        />
+        <Pane name="sst-anomaly-pane" style={{ zIndex: 350, pointerEvents: 'none' }}>
+          <ElNinoLayer onStatusChange={onSstTileStatusChange} />
+        </Pane>
       )}
       <MobilePanelOffset railOpen={railOpen} />
       {hazeMode && (

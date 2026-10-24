@@ -444,14 +444,57 @@
 
 /* Keep the legend controls clear of the trigger and let them fit narrow stages */
 .el-nino-legend-toggle { left: 16px; top: 74px; }
-.el-nino-legend { left: 16px; top: 112px; max-height: calc(100% - 200px); overflow-y: auto; }
+.el-nino-legend {
+  left: 16px;
+  top: 112px;
+  width: min(360px, calc(100% - 32px));
+  max-height: calc(100% - 128px);
+  gap: 12px;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border: 1px solid rgba(255, 255, 255, .78);
+  border-radius: 18px;
+  background: rgba(255, 251, 247, .95);
+  box-shadow: 0 14px 36px rgba(48, 40, 32, .16), 0 2px 8px rgba(48, 40, 32, .08);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+.el-nino-legend-head { display: flex; align-items: center; gap: 11px; }
+.el-nino-legend-icon {
+  display: grid;
+  flex: none;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(27, 139, 166, .16);
+  border-radius: 12px;
+  background: linear-gradient(145deg, #e4f6f5, #dcecf5);
+  color: #177f9b;
+}
+.el-nino-legend-icon svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+.el-nino-legend-title { display: grid; min-width: 0; gap: 3px; }
+.el-nino-legend-title small { color: #7b6b5e; font-size: .58rem; font-weight: 800; letter-spacing: .1em; }
+.el-nino-legend-title strong { color: var(--ink); font-size: .88rem; line-height: 1.25; }
+.el-nino-legend-source { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--ink-soft); font-size: .68rem; }
+.el-nino-legend-source a { color: #326b79; font-weight: 700; text-decoration: none; }
+.el-nino-legend-source a:hover { text-decoration: underline; }
+.el-nino-legend-source b { padding: 4px 7px; border: 1px solid #e7ddd3; border-radius: 999px; background: rgba(255, 255, 255, .78); color: #66584d; font-size: .62rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.el-nino-scale-block { display: grid; gap: 6px; }
+.el-nino-legend .sst-scale { height: 13px; border: 0; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(45, 38, 33, .12); }
+.el-nino-legend .sst-scale-labels { color: #564c44; font-size: .64rem; font-weight: 750; }
+.el-nino-legend-note { margin: 0; color: #61574f; font-size: .72rem; line-height: 1.5; }
+.el-nino-legend-foot { padding-top: 9px; border-top: 1px solid rgba(81, 66, 52, .12); color: #85786d; font-size: .64rem; line-height: 1.35; }
+.el-nino-layer-status { padding: 8px 10px; border-radius: 10px; background: #f1f5f5; color: #506169; font-size: .66rem; line-height: 1.4; }
+.el-nino-layer-status.is-ready { background: #eaf5ed; color: #2f6840; }
+.el-nino-layer-status.is-error { background: #fff0e9; color: #8d3d20; }
 
 @media (max-width: 900px) {
   .map-layer-menu { left: 12px; top: 12px; max-width: calc(100% - 24px); }
   .map-layer-trigger { min-height: 44px; max-width: min(220px, 100%); }
   .map-layer-panel { width: 300px; max-width: calc(100vw - 24px); }
   .el-nino-legend-toggle { left: 12px; top: 68px; }
-  .el-nino-legend { left: 12px; top: 106px; }
+  .el-nino-legend { left: 12px; top: 106px; width: min(360px, calc(100% - 24px)); }
 }
 /* Very narrow phones: icon plus chevron only */
 @media (max-width: 380px) {
