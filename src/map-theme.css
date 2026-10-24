@@ -93,6 +93,63 @@
 .fx-pin.is-under-control .fx-pulse { display: none; }
 .fx-pin.is-under-control .fx-flame { animation: none; }
 
+/* City weather-risk screening badge (tap for details; no permanent label). */
+.weather-risk-marker-wrap { overflow: visible; }
+.weather-risk-marker {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  --risk-color: #D1A900;
+}
+.weather-risk-marker-halo {
+  position: absolute;
+  width: 44px;
+  height: 44px;
+  border: 1.5px solid color-mix(in srgb, var(--risk-color) 62%, #fff);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--risk-color) 12%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--risk-color) 9%, transparent);
+}
+.weather-risk-marker-core {
+  position: relative;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 2.5px solid #fff;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fffdfa, #f7eee4);
+  box-shadow: 0 3px 10px rgba(41, 30, 22, .28), 0 0 0 1px color-mix(in srgb, var(--risk-color) 58%, #fff);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.weather-risk-marker:hover .weather-risk-marker-core {
+  transform: translateY(-1px) scale(1.08);
+  box-shadow: 0 5px 14px rgba(41, 30, 22, .32), 0 0 0 2px color-mix(in srgb, var(--risk-color) 70%, #fff);
+}
+.weather-risk-marker-core svg { width: 18px; height: 21px; display: block; }
+.weather-risk-thermometer { color: var(--risk-color); overflow: visible; }
+.weather-risk-thermometer path,
+.weather-risk-thermometer circle { stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.weather-risk-thermometer circle { fill: currentColor; }
+.weather-risk-marker-score {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  min-width: 21px;
+  height: 18px;
+  padding: 0 4px;
+  border: 1.5px solid #fff;
+  border-radius: 999px;
+  background: #28231f;
+  color: #fff;
+  font: 750 9px/15px var(--font-display, system-ui);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, .25);
+}
+
 @keyframes fx-pulse {
   0%   { transform: scale(0.9); opacity: 0.45; }
   100% { transform: scale(2.3); opacity: 0; }

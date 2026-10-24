@@ -282,6 +282,26 @@ function riskColor(score) {
   return '#D1A900';
 }
 
+function weatherRiskIcon(spot) {
+  const color = riskColor(spot.score);
+  return L.divIcon({
+    className: 'pin-wrap weather-risk-marker-wrap',
+    html: `<span class="weather-risk-marker" style="--risk-color:${color}" aria-hidden="true">
+      <span class="weather-risk-marker-halo"></span>
+      <span class="weather-risk-marker-core">
+        <svg class="weather-risk-thermometer" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M14 14.76V5a4 4 0 0 0-8 0v9.76a6 6 0 1 0 8 0Z" />
+          <path d="M10 7v10" />
+          <circle cx="10" cy="18" r="2.5" />
+        </svg>
+      </span>
+      <span class="weather-risk-marker-score">${spot.score}</span>
+    </span>`,
+    iconSize: [48, 54],
+    iconAnchor: [24, 27],
+  });
+}
+
 function WeatherPopupClose() {
   const map = useMap();
   return (
@@ -302,11 +322,12 @@ function WeatherPopupClose() {
 
 function SurigaoWeatherLayer({ spots = [] }) {
   return spots.map((spot) => (
-    <CircleMarker
+    <Marker
       key={spot.id}
-      center={spot.location}
-      radius={8 + spot.score / 12}
-      pathOptions={{ color: '#fff', weight: 2, fillColor: riskColor(spot.score), fillOpacity: 0.75 }}
+      position={spot.location}
+      icon={weatherRiskIcon(spot)}
+      title={`Surigao City Gym weather screening: ${spot.score} out of 100`}
+      zIndexOffset={1500}
     >
       <Popup className="weather-risk-leaflet-popup" closeButton={false}>
         <div className="weather-risk-popup">
@@ -321,11 +342,11 @@ function SurigaoWeatherLayer({ spots = [] }) {
             <div><strong>{spot.tempRiseC == null ? '—' : `${spot.tempRiseC >= 0 ? '+' : ''}${spot.tempRiseC.toFixed(1)}°C`}</strong><span>Change vs 72 h mean</span></div>
             <div><strong>{spot.recentRain == null ? '—' : `${spot.recentRain.toFixed(1)} mm`}</strong><span>Rain in recent 72 h</span></div>
           </div>
-          <p className="weather-risk-disclaimer">Area-level weather screening only. It is not a reported fire or a prediction of where ignition will occur.</p>
-          <footer>Open-Meteo model grid · {spot.coverage}% input coverage<br />Grid cell {spot.location[0].toFixed(3)}°, {spot.location[1].toFixed(3)}°</footer>
+          <p className="weather-risk-disclaimer">Surigao City weather screening only. This is not a reported fire or a prediction of an ignition point. The city marker shows the screening area; weather input comes from a coarser model grid.</p>
+          <footer>Open-Meteo model grid · {spot.coverage}% input coverage<br />Grid cell {(spot.modelGridLocation ?? spot.location)[0].toFixed(3)}°, {(spot.modelGridLocation ?? spot.location)[1].toFixed(3)}°</footer>
         </div>
       </Popup>
-    </CircleMarker>
+    </Marker>
   ));
 }
 

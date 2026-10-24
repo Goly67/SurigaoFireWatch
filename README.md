@@ -170,10 +170,27 @@ nearby report when it falls within 2 km, alongside the independent-report
 logic. VIIRS detects thermal activity, not individual houses, so it never
 creates a report or map pin by itself.
 
-The Philippines fire map merges the ArcGIS VIIRS feed with NASA FIRMS when a
-FIRMS map key is configured. FIRMS adds separate near-real-time feeds for
-Suomi NPP VIIRS, NOAA-20 VIIRS, NOAA-21 VIIRS, and MODIS. Create a free key at
-<https://firms.modaps.eosdis.nasa.gov/api/map_key/> and add it to `.env.local`:
+The El Niño watch uses NASA EOSDIS GIBS's daily GHRSST MUR sea-surface
+temperature anomaly WMS layer, like the reference map. It is keyless and does
+not require a `.env.local` value. The layer shows ocean anomalies as context
+for ENSO; it is not a standalone official ENSO alert.
+
+## Surigao fire-weather screening
+
+With **EL NIÑO WATCH** enabled, the map also requests Open-Meteo current
+temperature, relative humidity, precipitation, and recent rainfall for the
+locations in `src/data/surigaoSpots.js`. The temperature component includes
+the change from the preceding 72-hour grid mean. Each circle shows a relative
+fire-weather screening index that combines those weather values with the
+existing approximate fuel and vegetation descriptors. The popup's confidence
+is input coverage confidence, not a probability that a fire will start.
+These locations cannot identify an ignition point, and the app does not label
+them as active fires. The Open-Meteo forecast grid is not a local sensor.
+
+NASA FIRMS credentials remain optional for the separate Indonesia haze and
+historical-fire features. Create a free key at
+<https://firms.modaps.eosdis.nasa.gov/api/map_key/> and add it to `.env.local`
+only if those features need the extra feed:
 
 ```bash
 VITE_FIRMS_MAP_KEY=your_firms_map_key

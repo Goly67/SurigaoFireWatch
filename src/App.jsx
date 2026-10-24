@@ -106,18 +106,24 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    const refresh = () => {
-      fetchSurigaoFireRisk()
-        .then((hotspots) => {
-          if (cancelled) return;
-          setFireRiskSpots(hotspots);
-          setFireRiskError('');
-          setFireRiskUpdatedAt(Date.now());
-        })
-        .catch((error) => { if (!cancelled) setFireRiskError(error.message || 'Weather data is unavailable.'); });
+    let requestPending = false;
+    const refresh = async () => {
+      if (requestPending) return;
+      requestPending = true;
+      try {
+        const hotspots = await fetchSurigaoFireRisk();
+        if (cancelled) return;
+        setFireRiskSpots(hotspots);
+        setFireRiskError('');
+        setFireRiskUpdatedAt(Date.now());
+      } catch (error) {
+        if (!cancelled) setFireRiskError(error.message || 'Weather data is unavailable.');
+      } finally {
+        requestPending = false;
+      }
     };
     refresh();
-    const id = setInterval(refresh, 15 * 60 * 1000);
+    const id = setInterval(refresh, 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
@@ -498,7 +504,7 @@ export default function App() {
                 <div className="sst-scale" aria-label="Sea surface temperature anomaly scale from minus 5 to plus 5 degrees Celsius" />
                 <div className="sst-scale-labels"><span>≤ −5°C</span><span>0°C</span><span>≥ +5°C</span></div>
                 <small>Ocean anomaly is an El Niño indicator, not land temperature. The map opens over the equatorial Pacific Niño 3.4 region; zoom out for the global view.</small>
-                <small>On the normal map, Surigao’s circle marks a weather-grid screening area, not a predicted ignition point.</small>
+                <small>On the normal map, Surigao’s circle marks the city screening area. Its weather comes from a coarser model grid; it is not a predicted ignition point.</small>
                 {fireRiskError && <small className="el-nino-error">Fire-weather data unavailable: {fireRiskError}</small>}
                 <small className="risk-circles"><i className="risk-low" /> Lower relative index <i className="risk-elevated" /> Elevated <i className="risk-high" /> Higher</small>
                 {fireRiskSpots.length > 0 && fireRiskUpdatedAt && <small>Surigao City weather grid · updated {new Date(fireRiskUpdatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</small>}

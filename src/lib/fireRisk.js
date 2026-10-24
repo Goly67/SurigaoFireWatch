@@ -8,8 +8,8 @@ function clamp(value, min = 0, max = 1) {
 
 /**
  * A city-level weather screening index, not a prediction of ignition.
- * Use the actual model grid coordinate returned by Open-Meteo; do not invent
- * individual fire-start points or use unverified fuel descriptors.
+ * Keep the map marker on Surigao City; expose the coarser Open-Meteo grid
+ * coordinate separately so it is not mistaken for a precise fire-start site.
  */
 export async function fetchSurigaoFireRisk() {
   const url = new URL(API);
@@ -23,7 +23,7 @@ export async function fetchSurigaoFireRisk() {
     forecast_days: '1',
   });
 
-  const response = await fetch(url);
+  const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) throw new Error(`Weather service returned ${response.status}`);
   const payload = await response.json();
   const rows = Array.isArray(payload) ? payload : [payload];
@@ -70,7 +70,8 @@ export async function fetchSurigaoFireRisk() {
     return {
       id: 'surigao-weather-grid',
       name: 'Surigao City area weather grid',
-      location: [weather?.latitude ?? SURIGAO_CENTER[0], weather?.longitude ?? SURIGAO_CENTER[1]],
+      location: SURIGAO_CENTER,
+      modelGridLocation: [weather?.latitude ?? SURIGAO_CENTER[0], weather?.longitude ?? SURIGAO_CENTER[1]],
       score,
       coverage,
       temperature: hasTemp ? temperature : null,

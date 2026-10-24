@@ -9,7 +9,8 @@
  * stations across Mindanao.
  */
 
-export const SURIGAO_CENTER = [9.7839, 125.4889];
+// Surigao City Gym / City Hall complex, Surigao City.
+export const SURIGAO_CENTER = [9.79136, 125.49363];
 
 export const barangays = [
   { id: 'washington',  name: 'Washington',   center: [9.7880, 125.4936], fuel: 'dense_residential' },
