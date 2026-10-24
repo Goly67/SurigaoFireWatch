@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Pane, Tooltip, Popup, useMap, useMapEvents,
+  MapContainer, TileLayer, Marker, Polygon, Polyline, Circle, CircleMarker, Pane, Tooltip, Popup, ZoomControl, useMap, useMapEvents,
 } from 'react-leaflet';
 import L from 'leaflet';
 import { SURIGAO_CENTER } from '../data/surigao.js';
@@ -12,13 +12,24 @@ import { HazeLayer } from './HazeUI.jsx';
 // Frame that takes in Indonesia's fire belt and the whole Philippines.
 const HAZE_BOUNDS = [[-9.5, 96], [21.5, 144]];
 const MOBILE_HAZE_BOUNDS = [[-8.5, 108], [20.5, 132]];
-const PHILIPPINES_FIRE_BOUNDS = [[4.5, 116], [21.5, 127.5]];
+const PHILIPPINES_BOUNDS = [[4.5, 116], [21.5, 127.5]];
 
-/** Flame glyph, flickering. Drawn rather than imported so it can be tinted. */
+/** Glyphs drawn inline so they can be tinted and animated with CSS. */
 const flameSvg = `
-<svg viewBox="0 0 24 32" aria-hidden="true">
-  <path class="flame-outer" d="M12 0C12 6 5 8 5 16a7 7 0 0 0 14 0c0-4-2-6-3-9-1 3-4 3-4 0 0-3 0-5 0-7z"/>
-  <path class="flame-inner" d="M12 12c0 3-3 4-3 7a3.2 3.2 0 0 0 6.4 0c0-3-2.2-4-3.4-7z"/>
+<svg viewBox="0 0 24 28" aria-hidden="true" class="fx-flame">
+  <path class="fx-flame-outer" d="M12 1c.6 4.6-4.8 6.8-4.8 12.4A6.6 6.6 0 0 0 12 20.2a6.6 6.6 0 0 0 4.8-6.8c0-2.2-.9-3.9-1.9-5.4-.3 1.7-1.3 2.7-2.6 2.9C13 8.5 13.2 4.6 12 1z"/>
+  <path class="fx-flame-inner" d="M12 13.2c.2 2-1.9 2.8-1.9 4.6a1.9 1.9 0 0 0 3.8 0c0-1.7-1.5-2.5-1.9-4.6z"/>
+</svg>`;
+
+const smokeSvg = `
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path class="fx-cloud" d="M7.5 18a4.5 4.5 0 0 1-.6-8.96A5.5 5.5 0 0 1 17.6 9.6 4.2 4.2 0 0 1 17 18z"/>
+</svg>`;
+
+const controlledSvg = `
+<svg viewBox="0 0 24 24" aria-hidden="true">
+  <path class="fx-shield" d="M12 2.5 4.5 5.4v5.6c0 4.6 3.1 8.1 7.5 10 4.4-1.9 7.5-5.4 7.5-10V5.4z"/>
+  <path class="fx-check" d="m8.6 12.2 2.6 2.6 4.4-5"/>
 </svg>`;
 
 function incidentIcon(incident, isSelected, incidentState = 'active') {
@@ -27,35 +38,17 @@ function incidentIcon(incident, isSelected, incidentState = 'active') {
   const lightWarning = held && !underControl;
   const alarmColor = underControl ? '#2F6CFF' : incident.alarm.color;
   const badgeCode = underControl ? 'UC' : incident.alarm.code;
-  const showFire = !held && !underControl;
+  const glyph = underControl ? controlledSvg : lightWarning ? smokeSvg : flameSvg;
 
   return L.divIcon({
     className: 'pin-wrap',
     html: `
-      <span class="fire-pin ${lightWarning ? 'is-light' : ''} ${underControl ? 'is-under-control' : ''} ${isSelected ? 'is-selected' : ''}"
+      <span class="fx-pin ${lightWarning ? 'is-light' : ''} ${underControl ? 'is-under-control' : ''} ${isSelected ? 'is-selected' : ''}"
             style="--alarm:${alarmColor}">
-        <span class="fire-ring"></span>
-        <span class="fire-ring delay"></span>
-        <span class="fire-glow"></span>
-        <span class="fire-flame">${showFire ? flameSvg : ''}</span>
-        ${lightWarning ? '<span class="fire-smoke-dot"></span>' : ''}
-        <span class="fire-code">${badgeCode}</span>
-      </span>`,
-    iconSize: [44, 44],
-    iconAnchor: [22, 22],
-  });
-}
-
-function satelliteFireIcon(hotspot) {
-  const scale = hotspot.frp > 40 ? 1.18 : hotspot.frp > 12 ? 1.05 : 0.92;
-  return L.divIcon({
-    className: 'pin-wrap',
-    html: `
-      <span class="fire-pin satellite-fire-pin" style="--alarm:#E34A17; --satellite-scale:${scale}">
-        <span class="fire-ring"></span>
-        <span class="fire-ring delay"></span>
-        <span class="fire-glow"></span>
-        <span class="fire-flame">${flameSvg}</span>
+        <span class="fx-pulse"></span>
+        <span class="fx-pulse d2"></span>
+        <span class="fx-body"><span class="fx-icon">${glyph}</span></span>
+        <span class="fx-code">${badgeCode}</span>
       </span>`,
     iconSize: [44, 44],
     iconAnchor: [22, 22],
@@ -82,15 +75,15 @@ function stationIcon(station) {
   return L.divIcon({
     className: 'pin-wrap',
     html: `
-      <span class="bfp-badge is-${station.kind}">
-        <svg viewBox="0 0 32 32" aria-hidden="true">
-          <path class="badge-cross" d="M16 2l3.4 6.1L26 5.3l-2.7 6.6 6.1 3.4-6.1 3.4L26 25.3l-6.6-2.8L16 30l-3.4-7.5L6 25.3l2.7-6.6L2.6 15.3l6.1-3.4L6 5.3l6.6 2.8z"/>
-          <circle class="badge-core" cx="16" cy="16" r="6.4"/>
+      <span class="fx-bfp is-${station.kind}">
+        <svg viewBox="0 0 28 31" aria-hidden="true">
+          <path class="fx-bfp-shield" d="M14 1.5 3 5.4v8.2c0 6.3 4.4 11.1 11 14.9 6.6-3.8 11-8.6 11-14.9V5.4z"/>
+          <path class="fx-bfp-drop" d="M14 7c.4 3.1-3.3 4.6-3.3 8.4a3.3 3.3 0 0 0 6.6 0c0-1.5-.6-2.7-1.3-3.7-.2 1.1-.9 1.8-1.8 2 .6-2.2.5-4.7-.2-6.7z"/>
         </svg>
-        <span class="bfp-text">BFP</span>
+        <span class="fx-bfp-text">BFP</span>
       </span>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
+    iconSize: [34, 40],
+    iconAnchor: [17, 20],
   });
 }
 
@@ -122,6 +115,43 @@ function FlyTo({ location, railOpen }) {
   return null;
 }
 
+/**
+ * "Center on me" button, built as a real Leaflet control so it stacks under
+ * the zoom buttons and never swallows clicks meant for the map. It only
+ * appears once the device has shared a location.
+ */
+function LocateControl({ location }) {
+  const map = useMap();
+  const locationRef = useRef(location);
+  locationRef.current = location;
+  const available = Boolean(location);
+
+  useEffect(() => {
+    if (!available) return undefined;
+    const control = L.control({ position: 'topright' });
+    control.onAdd = () => {
+      const bar = L.DomUtil.create('div', 'leaflet-bar fx-locate');
+      const button = L.DomUtil.create('a', '', bar);
+      button.href = '#';
+      button.setAttribute('role', 'button');
+      button.setAttribute('aria-label', 'Center map on my location');
+      button.title = 'My location';
+      button.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="7.5"/></svg>';
+      L.DomEvent.disableClickPropagation(bar);
+      L.DomEvent.on(button, 'click', (event) => {
+        L.DomEvent.preventDefault(event);
+        if (!locationRef.current) return;
+        map.flyTo(locationRef.current, Math.max(map.getZoom(), 15), { duration: 0.7 });
+      });
+      return bar;
+    };
+    control.addTo(map);
+    return () => { control.remove(); };
+  }, [map, available]);
+
+  return null;
+}
+
 function ClickToPlace({ active, onPick }) {
   useMapEvents({
     click(event) {
@@ -131,38 +161,18 @@ function ClickToPlace({ active, onPick }) {
   return null;
 }
 
+// The pulse is a CSS animation on a divIcon. The old version re-rendered a
+// CircleMarker on every animation frame, which kept React busy for as long
+// as location sharing was on.
+const USER_ICON = L.divIcon({
+  className: 'pin-wrap',
+  html: '<span class="fx-me"><span class="fx-me-ring"></span><span class="fx-me-dot"></span></span>',
+  iconSize: [44, 44],
+  iconAnchor: [22, 22],
+});
+
 function UserLocationPulse({ center }) {
-  const [state, setState] = useState({ radius: 14, opacity: 0.9 });
-
-  useEffect(() => {
-    let rafId;
-    let start = performance.now();
-
-    const tick = (now) => {
-      const elapsed = ((now - start) % 1800) / 1800;
-      const radius = 14 + elapsed * 28;
-      const opacity = 0.9 - elapsed * 0.9;
-      setState({ radius, opacity });
-      rafId = requestAnimationFrame(tick);
-    };
-
-    rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
-  }, []);
-
-  return (
-    <CircleMarker
-      center={center}
-      radius={state.radius}
-      pathOptions={{
-        color: '#1677D2',
-        weight: 3,
-        fill: false,
-        opacity: state.opacity,
-        dashArray: '0',
-      }}
-    />
-  );
+  return <Marker position={center} icon={USER_ICON} interactive={false} keyboard={false} />;
 }
 
 function UserLocationMarker({ location, accuracy }) {
@@ -179,11 +189,6 @@ function UserLocationMarker({ location, accuracy }) {
         />
       )}
       <UserLocationPulse center={location} />
-      <CircleMarker
-        center={location}
-        radius={8}
-        pathOptions={{ color: '#1677D2', weight: 3, fillColor: '#fff', fillOpacity: 1 }}
-      />
     </>
   );
 }
@@ -213,128 +218,114 @@ function HazeViewport({ active }) {
   return null;
 }
 
-function NationalFireViewport({ active }) {
+function ElNinoViewport({ active }) {
   const map = useMap();
   const previous = useRef(null);
   useEffect(() => {
-    if (previous.current === active) return;
+    if (previous.current === active) return undefined;
     previous.current = active;
-    if (active) {
-      map.flyToBounds(PHILIPPINES_FIRE_BOUNDS, {
-        padding: [24, 24],
-        paddingBottomRight: window.matchMedia('(max-width: 900px)').matches
-          ? [0, Math.round(window.innerHeight * 0.28)]
-          : undefined,
-        duration: 0.9,
-      });
-    } else {
-      map.flyTo(SURIGAO_CENTER, window.matchMedia('(max-width: 900px)').matches ? 13 : 14, { duration: 0.9 });
+    if (!active) {
+      // OSM's square Web Mercator world must remain at least as large as the
+      // viewport in both dimensions. Below this limit, tiles repeat sideways
+      // and the uncovered polar edges show the map background as white bands.
+      const normalWorldBounds = L.latLngBounds([[-85.0511, -180], [85.0511, 180]]);
+      const fitNormalWorld = () => {
+        const size = map.getSize();
+        if (!size.x || !size.y) return;
+        const minZoom = Math.max(0, Math.log2(Math.max(size.x, size.y) / 256));
+        map.setMinZoom(minZoom);
+        if (map.getZoom() < minZoom) map.setZoom(minZoom, { animate: false });
+      };
+      map.setMaxBounds(normalWorldBounds);
+      map.options.maxBoundsViscosity = 1;
+      map.setMaxZoom(19);
+      fitNormalWorld();
+      map.setView(SURIGAO_CENTER, window.matchMedia('(max-width: 900px)').matches ? 13 : 14, { animate: false });
+      // The local fire map should open at its usual zoom, while retaining the
+      // world-fit minimum for zooming out.
+      map.on('resize', fitNormalWorld);
+      return () => map.off('resize', fitNormalWorld);
     }
+
+    // Keep one unwrapped world so the tiles do not repeat, and focus on the
+    // Philippines when the El Niño layer is enabled.
+    const worldBounds = L.latLngBounds([[-60, 90], [75, 450]]);
+    let firstFit = true;
+    const fitOneWorld = () => {
+      const size = map.getSize();
+      if (!size.x || !size.y) return;
+      const minZoom = Math.max(0, Math.log2(Math.max(size.x, size.y) / 256));
+      map.setMaxBounds(worldBounds);
+      map.options.maxBoundsViscosity = 1;
+      map.setMinZoom(minZoom);
+      map.setMaxZoom(12);
+      if (firstFit) {
+        map.flyToBounds(PHILIPPINES_BOUNDS, {
+          padding: [36, 36],
+          maxZoom: 6,
+          duration: 0.8,
+        });
+      }
+      else if (map.getZoom() < minZoom) map.setZoom(minZoom, { animate: false });
+      firstFit = false;
+    };
+    fitOneWorld();
+    map.on('resize', fitOneWorld);
+    return () => map.off('resize', fitOneWorld);
   }, [active, map]);
   return null;
 }
 
-function confidenceLabel(value) {
-  const code = String(value ?? '').trim().toLowerCase();
-  if (Number.isFinite(Number(value))) return `${Number(value)}% (numeric satellite confidence)`;
-  if (code === 'h' || code === 'high') return 'High';
-  if (code === 'n' || code === 'nominal') return 'Nominal';
-  if (code === 'l' || code === 'low') return 'Low';
-  return value || 'Not reported';
+function riskColor(score) {
+  if (score >= 70) return '#C62828';
+  if (score >= 45) return '#EF6C00';
+  return '#D1A900';
 }
 
-function hotspotClassification(value) {
-  const numeric = Number(value);
-  if (Number.isFinite(numeric) && numeric < 50) return 'Possible fire · not confirmed';
-  return 'Possible satellite hotspot · not confirmed';
-}
-
-function sensorLabel(sensor) {
-  const value = String(sensor ?? '');
-  if (value === 'N') return 'Suomi NPP';
-  if (value === 'N20') return 'NOAA-20';
-  if (value === 'N21') return 'NOAA-21';
-  return value
-    .replace('_NRT', '')
-    .replace('VIIRS_', 'VIIRS ')
-    .replace('MODIS', 'MODIS');
-}
-
-function acquisitionLabel(value) {
-  if (value == null || value === '') return 'Not reported';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return `${date.toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', month: 'short', day: 'numeric', year: 'numeric' })} ${date.toLocaleTimeString('en-PH', { timeZone: 'Asia/Manila', hour: 'numeric', minute: '2-digit' })} PHT`;
-}
-
-function SatelliteHotspotMarker({ hotspot, index }) {
-  const [copied, setCopied] = useState(false);
-  const latitude = `${Math.abs(hotspot.lat).toFixed(6)}° ${hotspot.lat >= 0 ? 'N' : 'S'}`;
-  const longitude = `${Math.abs(hotspot.lon).toFixed(6)}° ${hotspot.lon >= 0 ? 'E' : 'W'}`;
-  const coordinates = `${hotspot.lat.toFixed(6)}, ${hotspot.lon.toFixed(6)}`;
-
-  async function copyLocation() {
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(coordinates);
-      } else {
-        const input = document.createElement('textarea');
-        input.value = coordinates;
-        input.style.position = 'fixed';
-        input.style.opacity = '0';
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        input.remove();
-      }
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      setCopied(false);
-    }
-  }
-
+function WeatherPopupClose() {
+  const map = useMap();
   return (
-    <Marker
-      key={`${hotspot.lat}-${hotspot.lon}-${hotspot.acqTime ?? index}`}
-      position={[hotspot.lat, hotspot.lon]}
-      icon={satelliteFireIcon(hotspot)}
+    <button
+      type="button"
+      className="weather-risk-close"
+      aria-label="Close weather screening details"
+      onClick={(event) => {
+        event.preventDefault();
+        L.DomEvent.stopPropagation(event);
+        map.closePopup();
+      }}
     >
-      <Popup className="satellite-hotspot-popup" closeButton>
-        <div className="hotspot-popup-head">
-          <span className="hotspot-popup-icon" aria-hidden="true" dangerouslySetInnerHTML={{ __html: flameSvg }} />
-          <div>
-            <strong>{hotspotClassification(hotspot.confidence)}</strong>
-            <span>Needs another satellite pass or ground confirmation</span>
-          </div>
-        </div>
-        <div className="hotspot-popup-grid">
-          <div><span>Latitude</span><b>{latitude}</b></div>
-          <div><span>Longitude</span><b>{longitude}</b></div>
-          <div><span>Pixel-integrated FRP</span><b>{hotspot.frp.toFixed(1)} MW</b></div>
-          <div><span>Confidence</span><b>{confidenceLabel(hotspot.confidence)}</b></div>
-          <div><span>Sensor</span><b>{sensorLabel(hotspot.sensor)}</b></div>
-          <div><span>Acquired</span><b>{acquisitionLabel(hotspot.acqTime)}</b></div>
-        </div>
-        <button type="button" className="hotspot-copy" onClick={copyLocation}>
-          <span aria-hidden="true">{copied ? '✓' : '⌗'}</span>
-          {copied ? 'Location copied' : 'Copy coordinates'}
-        </button>
-        <p className="hotspot-popup-note">
-          This hotspot was detected about {hotspot.hoursOld.toFixed(1)} h ago. FRP is pixel-integrated radiant power detected by the satellite, not the fire's size. The map toggle reports the newest hotspot anywhere in the Philippines. This is an approximate satellite pixel location, not an exact fire perimeter.
-        </p>
-      </Popup>
-    </Marker>
+      ×
+    </button>
   );
 }
 
-function NationalFireLayer({ hotspots }) {
-  return hotspots.map((hotspot, index) => (
-    <SatelliteHotspotMarker
-      key={`${hotspot.lat}-${hotspot.lon}-${hotspot.acqTime ?? index}`}
-      hotspot={hotspot}
-      index={index}
-    />
+function SurigaoWeatherLayer({ spots = [] }) {
+  return spots.map((spot) => (
+    <CircleMarker
+      key={spot.id}
+      center={spot.location}
+      radius={8 + spot.score / 12}
+      pathOptions={{ color: '#fff', weight: 2, fillColor: riskColor(spot.score), fillOpacity: 0.75 }}
+    >
+      <Popup className="weather-risk-leaflet-popup" closeButton={false}>
+        <div className="weather-risk-popup">
+          <header className="weather-risk-popup-head">
+            <div><span>LIVE WEATHER · SURIGAO CITY</span><strong>Fire-weather screening</strong></div>
+            <b className="weather-risk-score">{spot.score}<small>/100</small></b>
+            <WeatherPopupClose />
+          </header>
+          <div className="weather-risk-metrics">
+            <div><strong>{spot.temperature == null ? '—' : `${spot.temperature.toFixed(1)}°C`}</strong><span>Air temperature</span></div>
+            <div><strong>{spot.humidity == null ? '—' : `${Math.round(spot.humidity)}%`}</strong><span>Humidity</span></div>
+            <div><strong>{spot.tempRiseC == null ? '—' : `${spot.tempRiseC >= 0 ? '+' : ''}${spot.tempRiseC.toFixed(1)}°C`}</strong><span>Change vs 72 h mean</span></div>
+            <div><strong>{spot.recentRain == null ? '—' : `${spot.recentRain.toFixed(1)} mm`}</strong><span>Rain in recent 72 h</span></div>
+          </div>
+          <p className="weather-risk-disclaimer">Area-level weather screening only. It is not a reported fire or a prediction of where ignition will occur.</p>
+          <footer>Open-Meteo model grid · {spot.coverage}% input coverage<br />Grid cell {spot.location[0].toFixed(3)}°, {spot.location[1].toFixed(3)}°</footer>
+        </div>
+      </Popup>
+    </CircleMarker>
   ));
 }
 
@@ -352,9 +343,9 @@ function cityTempIcon(city) {
   const hasTemp = typeof city.tempC === 'number' && !Number.isNaN(city.tempC);
   return L.divIcon({
     className: 'pin-wrap',
-    html: `<span class="temp-chip" style="--temp-color:${tempColor(city.tempC)}">${hasTemp ? `${Math.round(city.tempC)}°` : '—'}</span>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
+    html: `<span class="fx-temp" style="--temp-color:${tempColor(city.tempC)}">${hasTemp ? `${Math.round(city.tempC)}°` : '—'}</span>`,
+    iconSize: [46, 24],
+    iconAnchor: [23, 12],
   });
 }
 
@@ -516,25 +507,24 @@ const LocalLayer = memo(function LocalLayer({
           </CircleMarker>
         ))}
 
-      {incidents.map((incident) => (
-        <Marker
-          key={incident.id}
-          position={incident.location}
-          icon={incidentIcon(incident, incident.id === selectedId, incidentStateMap[incident.id] ?? 'active')}
-          eventHandlers={{ click: () => onSelect(incident.id) }}
-          // Leaflet stacks icon markers by screen y-position, not
-          // importance, so a station badge, the wind plume, or even a
-          // lower-priority "light warning" pin can land in front of an
-          // active fire pin depending on where they fall on the map.
-          // Rank by what actually matters: active fires above held/light
-          // warnings above everything else, and the selected pin on top
-          // of same-tier pins too.
-          zIndexOffset={
-            (incident.alarm.level > 0 ? 3000 : 1000) +
-            (incident.id === selectedId ? 2000 : 0)
-          }
-        />
-      ))}
+      <Pane name="fireIncidentPane" style={{ zIndex: 690 }}>
+        {incidents.map((incident) => (
+          <Marker
+            key={incident.id}
+            pane="fireIncidentPane"
+            position={incident.location}
+            icon={incidentIcon(incident, incident.id === selectedId, incidentStateMap[incident.id] ?? 'active')}
+            title={`Fire report, alarm level ${incident.alarm.level}. Tap for details`}
+            eventHandlers={{ click: () => onSelect(incident.id) }}
+            // Keep fire symbols above the user-location pane and map pins.
+            // Leaflet's screen-y ordering still ranks fires within this pane.
+            zIndexOffset={
+              (incident.alarm.level > 0 ? 3000 : 1000) +
+              (incident.id === selectedId ? 2000 : 0)
+            }
+          />
+        ))}
+      </Pane>
 
       {pendingLocation && (
         <CircleMarker
@@ -569,8 +559,9 @@ export default function MapView({
   localWeather = null,
   cityTemps = [],
   historicalOverlay = null,
-  nationalFireMode = false,
-  nationalFireHotspots = [],
+  elNinoMode = false,
+  fireRiskSpots = [],
+  sstMapDate,
 }) {
   const selected = incidents.find((i) => i.id === selectedId);
   const selectedState = selected ? incidentStateMap[selected.id] ?? 'active' : 'active';
@@ -585,7 +576,7 @@ export default function MapView({
     <MapContainer
       center={SURIGAO_CENTER}
       zoom={14}
-      className={`map ${placing ? 'is-placing' : ''} ${nationalFireMode ? 'is-national-fire-mode' : ''}`}
+      className={`map ${placing ? 'is-placing' : ''} ${elNinoMode ? 'is-el-nino-mode' : ''}`}
       zoomControl={false}
     >
       <TileLayer
@@ -595,11 +586,25 @@ export default function MapView({
         maxZoom={19}
       />
 
+      <ZoomControl position="topright" />
+      <LocateControl location={userLocation} />
       <ResizeOnPanelToggle trigger={railOpen} />
       <ClickToPlace active={placing} onPick={onPickLocation} />
       {selected && <FlyTo location={selected.location} railOpen={railOpen} />}
       <HazeViewport active={hazeMode} />
-      <NationalFireViewport active={nationalFireMode} />
+      <ElNinoViewport active={elNinoMode} />
+      {elNinoMode && (
+        <TileLayer
+          className="sst-anomaly-tiles"
+          url={`https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/GHRSST_L4_MUR_Sea_Surface_Temperature_Anomalies/default/${sstMapDate}/GoogleMapsCompatible_Level13/{z}/{y}/{x}.png`}
+          maxNativeZoom={13}
+          maxZoom={12}
+          noWrap={false}
+          opacity={0.78}
+          zIndex={350}
+          attribution='SST anomaly: <a href="https://earthdata.nasa.gov/data/instruments/gibs">NASA EOSDIS GIBS · GHRSST MUR</a>'
+        />
+      )}
       <MobilePanelOffset railOpen={railOpen} />
       {hazeMode && (
         <HazeLayer
@@ -651,10 +656,10 @@ export default function MapView({
         </>
       )}
 
-      {nationalFireMode && (
-        <NationalFireLayer hotspots={nationalFireHotspots} />
+      {!elNinoMode && (
+        <SurigaoWeatherLayer spots={fireRiskSpots} />
       )}
-      {!nationalFireMode && <CityTemperatureLayer cities={cityTemps} />}
+      {!elNinoMode && <CityTemperatureLayer cities={cityTemps} />}
       <LocalLayer
         incidents={incidents}
         incidentStateMap={incidentStateMap}

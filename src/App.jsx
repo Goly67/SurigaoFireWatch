@@ -10,12 +10,13 @@ import HistoricalFireView from './components/HistoricalFireView.jsx';
 import NotificationCenter from './components/NotificationCenter.jsx';
 import AdminPanel from './components/AdminPanel.jsx';
 import {
-  HazePanel, HazeTimeline, HazeToggle, NationalFireToggle, useHaze,
+  HazePanel, HazeTimeline, MapLayerDropdown, useHaze,
 } from './components/HazeUI.jsx';
 import { buildIncidents } from './lib/incidents.js';
 import { fetchWind, FALLBACK_WIND } from './lib/wind.js';
 import { fetchLocalWeather, fetchCityTemperatures } from './lib/localWeather.js';
 import { fetchThermalHotspots } from './lib/thermal.js';
+import { fetchSurigaoFireRisk } from './lib/fireRisk.js';
 import { destination, distanceMeters } from './lib/geo.js';
 import { isPointInCaraga } from './lib/haze.js';
 import { cities } from './data/bfpStations.js';
@@ -50,10 +51,12 @@ export default function App() {
   const [hazeOn, setHazeOn] = useState(false); // haze is a map layer, not a separate mode
   const [hazeFrame, setHazeFrame] = useState(0); // 0..24, 3 h apart
   const [hazeFocus, setHazeFocus] = useState(null);
-  const [nationalFireMode, setNationalFireMode] = useState(false);
-  const [nationalFireHotspots, setNationalFireHotspots] = useState([]);
-  const [nationalFireLoading, setNationalFireLoading] = useState(false);
-  const [nationalFireFetchedAt, setNationalFireFetchedAt] = useState(null);
+  const [elNinoWatchOn, setElNinoWatchOn] = useState(false);
+  const [elNinoLegendVisible, setElNinoLegendVisible] = useState(true);
+  const [fireRiskSpots, setFireRiskSpots] = useState([]);
+  const [fireRiskError, setFireRiskError] = useState('');
+  const [fireRiskUpdatedAt, setFireRiskUpdatedAt] = useState(null);
+  const [sstMapDate] = useState(() => new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10));
   const [userLocation, setUserLocation] = useState(null);
   const [locationAccuracy, setLocationAccuracy] = useState(null);
   const [evacuationIncidentId, setEvacuationIncidentId] = useState(null);
@@ -102,25 +105,24 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!nationalFireMode) return undefined;
     let cancelled = false;
     const refresh = () => {
-      setNationalFireLoading(true);
-      fetchThermalHotspots({ national: true })
+      fetchSurigaoFireRisk()
         .then((hotspots) => {
           if (cancelled) return;
-          setNationalFireHotspots(hotspots);
-          setNationalFireFetchedAt(Date.now());
+          setFireRiskSpots(hotspots);
+          setFireRiskError('');
+          setFireRiskUpdatedAt(Date.now());
         })
-        .finally(() => { if (!cancelled) setNationalFireLoading(false); });
+        .catch((error) => { if (!cancelled) setFireRiskError(error.message || 'Weather data is unavailable.'); });
     };
     refresh();
-    const id = setInterval(refresh, 60 * 1000);
+    const id = setInterval(refresh, 15 * 60 * 1000);
     return () => {
       cancelled = true;
       clearInterval(id);
     };
-  }, [nationalFireMode]);
+  }, []);
   useEffect(() => subscribeToPostApprovals(setPostApprovals), []);
 
   useEffect(() => {
@@ -324,7 +326,7 @@ export default function App() {
   function toggleHaze(on) {
     setHazeOn(on);
     if (on) {
-      setNationalFireMode(false);
+      setElNinoWatchOn(false);
       setShowStations(false);
     } else {
       setShowStations(true);
@@ -337,8 +339,8 @@ export default function App() {
     }
   }
 
-  function toggleNationalFireMode(on) {
-    setNationalFireMode(on);
+  function toggleElNinoWatch(on) {
+    setElNinoWatchOn(on);
     setShowStations(!on);
     if (on) {
       setHazeOn(false);
@@ -472,15 +474,38 @@ export default function App() {
       </button>
 
       <main className="stage">
-        <HazeToggle on={hazeOn} onChange={toggleHaze} />
-        <NationalFireToggle
-          on={nationalFireMode}
-          onChange={toggleNationalFireMode}
-          loading={nationalFireLoading}
-          hotspots={nationalFireHotspots}
-          fetchedAt={nationalFireFetchedAt}
-          clockTick={tick}
+        <MapLayerDropdown
+          hazeOn={hazeOn}
+          onHazeChange={toggleHaze}
+          elNinoOn={elNinoWatchOn}
+          onElNinoChange={toggleElNinoWatch}
         />
+        {elNinoWatchOn && (
+          <>
+            <button
+              type="button"
+              className="el-nino-legend-toggle"
+              aria-expanded={elNinoLegendVisible}
+              aria-controls="el-nino-legend"
+              onClick={() => setElNinoLegendVisible((visible) => !visible)}
+            >
+              {elNinoLegendVisible ? 'Hide legend' : 'Show legend'}
+            </button>
+            {elNinoLegendVisible && (
+              <div id="el-nino-legend" className="el-nino-legend">
+                <strong>Sea Surface Temperature Anomaly</strong>
+                <span>NASA GHRSST MUR · daily, about 1 km · {sstMapDate}</span>
+                <div className="sst-scale" aria-label="Sea surface temperature anomaly scale from minus 5 to plus 5 degrees Celsius" />
+                <div className="sst-scale-labels"><span>≤ −5°C</span><span>0°C</span><span>≥ +5°C</span></div>
+                <small>Ocean anomaly is an El Niño indicator, not land temperature. The map opens over the equatorial Pacific Niño 3.4 region; zoom out for the global view.</small>
+                <small>On the normal map, Surigao’s circle marks a weather-grid screening area, not a predicted ignition point.</small>
+                {fireRiskError && <small className="el-nino-error">Fire-weather data unavailable: {fireRiskError}</small>}
+                <small className="risk-circles"><i className="risk-low" /> Lower relative index <i className="risk-elevated" /> Elevated <i className="risk-high" /> Higher</small>
+                {fireRiskSpots.length > 0 && fireRiskUpdatedAt && <small>Surigao City weather grid · updated {new Date(fireRiskUpdatedAt).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}</small>}
+              </div>
+            )}
+          </>
+        )}
 
         <NotificationCenter
           incidents={activeIncidents}
@@ -535,8 +560,9 @@ export default function App() {
           localWeather={localWeather}
           cityTemps={cityTemps}
           historicalOverlay={view === 'historical' ? historicalOverlay : null}
-          nationalFireMode={nationalFireMode}
-          nationalFireHotspots={nationalFireHotspots}
+          elNinoMode={elNinoWatchOn}
+          fireRiskSpots={fireRiskSpots}
+          sstMapDate={sstMapDate}
         />
 
         {reporting && <div className="map-hint">Tap the map where the fire is</div>}

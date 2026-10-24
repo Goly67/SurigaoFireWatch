@@ -1,0 +1,507 @@
+/* =========================================================
+   Map theme: markers, tooltips, tiles
+   Import AFTER glass-theme.css in main.jsx
+   ========================================================= */
+
+.leaflet-container {
+  background: #E9EEF1;
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+.tile-base { filter: saturate(1.06) contrast(1.02); }
+
+.pin-wrap { background: none !important; border: 0 !important; }
+
+/* ---------- Fire incident pin ---------- */
+.fx-pin {
+  --alarm: #E4600A;
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.fx-pulse {
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--alarm);
+  opacity: 0;
+  animation: fx-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+.fx-pulse.d2 { animation-delay: 1.2s; }
+
+.fx-body {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  border: 2.5px solid #fff;
+  background:
+    radial-gradient(circle at 30% 22%, color-mix(in srgb, var(--alarm) 55%, #fff) 0%, var(--alarm) 52%, color-mix(in srgb, var(--alarm) 72%, #000) 100%);
+  box-shadow:
+    0 6px 14px rgba(40, 10, 0, 0.35),
+    0 0 0 1px rgba(0, 0, 0, 0.14),
+    0 0 18px color-mix(in srgb, var(--alarm) 55%, transparent);
+  transition: transform 180ms cubic-bezier(0.3, 1.5, 0.5, 1), box-shadow 180ms ease;
+}
+.fx-pin:hover .fx-body { transform: scale(1.08); }
+
+.fx-icon { display: grid; place-items: center; }
+.fx-icon svg { width: 19px; height: 19px; display: block; overflow: visible; }
+.fx-flame { transform-origin: 50% 90%; animation: fx-flicker 1.5s ease-in-out infinite; }
+.fx-flame-outer, .fx-cloud, .fx-shield { fill: #fff; }
+.fx-flame-inner { fill: color-mix(in srgb, var(--alarm) 35%, #FFD27A); }
+.fx-check { fill: none; stroke: var(--alarm); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+.fx-code {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #1F1510;
+  color: #fff;
+  border: 1.5px solid #fff;
+  font: 700 10px/15px var(--font-display, system-ui);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+}
+
+/* Selected: bigger with a halo ring */
+.fx-pin.is-selected { z-index: 2; }
+.fx-pin.is-selected .fx-body {
+  transform: scale(1.2);
+  box-shadow:
+    0 0 0 5px color-mix(in srgb, var(--alarm) 32%, transparent),
+    0 8px 18px rgba(40, 10, 0, 0.4),
+    0 0 24px color-mix(in srgb, var(--alarm) 65%, transparent);
+}
+
+/* Light warning: calmer, slower pulse */
+.fx-pin.is-light .fx-pulse { animation-duration: 3.6s; opacity: 0; }
+.fx-pin.is-light .fx-body { filter: saturate(0.9); }
+
+/* Under control: steady blue, no pulse or flicker */
+.fx-pin.is-under-control .fx-pulse { display: none; }
+.fx-pin.is-under-control .fx-flame { animation: none; }
+
+@keyframes fx-pulse {
+  0%   { transform: scale(0.9); opacity: 0.45; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+@keyframes fx-flicker {
+  0%, 100% { transform: scale(1) rotate(0deg); }
+  25%      { transform: scale(1.06, 0.96) rotate(-2deg); }
+  55%      { transform: scale(0.97, 1.05) rotate(1.5deg); }
+  80%      { transform: scale(1.04, 0.98) rotate(-1deg); }
+}
+
+/* ---------- BFP station badge ---------- */
+.fx-bfp {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 4px 6px rgba(60, 10, 0, 0.35));
+  transition: transform 160ms ease;
+}
+.fx-bfp:hover { transform: translateY(-2px) scale(1.06); }
+.fx-bfp svg { width: 28px; height: 31px; display: block; }
+.fx-bfp-shield { fill: #C62828; stroke: #fff; stroke-width: 2; stroke-linejoin: round; }
+.fx-bfp-drop { fill: #fff; }
+.fx-bfp-text {
+  margin-top: -4px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: #fff;
+  color: #B71C1C;
+  border: 1px solid rgba(183, 28, 28, 0.3);
+  font: 800 8px/1 var(--font-display, system-ui);
+  letter-spacing: 0.08em;
+}
+
+/* ---------- City temperature chip ---------- */
+.fx-temp {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 8px 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(31, 21, 16, 0.12);
+  box-shadow: 0 3px 10px rgba(31, 21, 16, 0.22);
+  color: #1F1510;
+  font: 700 12px/1 var(--font-display, system-ui);
+  font-variant-numeric: tabular-nums;
+  transition: transform 140ms ease;
+}
+.fx-temp::before {
+  content: '';
+  flex: none;
+  box-sizing: border-box;
+  width: 10px;
+  height: 10px;
+  min-width: 10px;
+  border-radius: 50%;
+  background: var(--temp-color, #9AA3AE);
+  border: 2px solid #fff;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--temp-color, #9AA3AE) 70%, #000);
+}
+.fx-temp:hover { transform: scale(1.1); }
+
+/* ---------- User location ---------- */
+.fx-me { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.fx-me-ring {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 3px solid #1677D2;
+  animation: fx-me 1.9s ease-out infinite;
+}
+.fx-me-dot {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #1677D2;
+  border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(22, 119, 210, 0.6), 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+@keyframes fx-me {
+  0%   { transform: scale(0.8); opacity: 0.9; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ---------- Tooltips ---------- */
+.leaflet-container .leaflet-tooltip {
+  background: rgba(31, 21, 16, 0.92);
+  color: #fff;
+  border: 0;
+  border-radius: 10px;
+  padding: 6px 10px;
+  font: 600 0.8rem/1.4 var(--font-body, system-ui);
+  box-shadow: 0 8px 20px rgba(31, 21, 16, 0.3);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+.leaflet-container .leaflet-tooltip-top::before { border-top-color: rgba(31, 21, 16, 0.92); }
+.leaflet-container .leaflet-tooltip-bottom::before { border-bottom-color: rgba(31, 21, 16, 0.92); }
+.leaflet-container .leaflet-tooltip-left::before { border-left-color: rgba(31, 21, 16, 0.92); }
+.leaflet-container .leaflet-tooltip-right::before { border-right-color: rgba(31, 21, 16, 0.92); }
+.leaflet-container .leaflet-tooltip strong { font-family: var(--font-display, system-ui); }
+
+/* ---------- Popups ---------- */
+.leaflet-popup-content-wrapper { box-shadow: var(--shadow-lift, 0 16px 40px rgba(0, 0, 0, 0.25)); }
+.leaflet-popup-content { margin: 0; }
+
+/* ---------- Attribution ---------- */
+.leaflet-control-attribution { border-radius: 10px 0 0 0; font-size: 0.7rem; }
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .fx-pulse, .fx-flame, .fx-me-ring { animation: none !important; }
+  .fx-pulse { opacity: 0.18; }
+}
+
+/* =========================================================
+   Map layers dropdown
+   ========================================================= */
+
+.map-layer-menu { left: 16px; top: 16px; z-index: 600; max-width: calc(100% - 32px); }
+
+.map-layer-trigger {
+  width: auto;
+  min-width: 0;
+  max-width: min(236px, 100%);
+  min-height: 46px;
+  gap: 10px;
+  padding: 6px 12px 6px 6px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.6));
+  border-radius: 16px;
+  background: var(--glass-strong, rgba(255, 250, 245, 0.88));
+  box-shadow: var(--shadow, 0 8px 28px rgba(120, 40, 5, 0.16)), var(--glass-edge, none);
+  -webkit-backdrop-filter: var(--blur, blur(14px));
+  backdrop-filter: var(--blur, blur(14px));
+  transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+.map-layer-trigger:hover,
+.map-layer-trigger[aria-expanded="true"] {
+  border-color: var(--orange, #E4600A);
+  box-shadow: var(--shadow-lift, 0 16px 40px rgba(120, 40, 5, 0.26)), var(--glass-edge, none);
+}
+.map-layer-trigger:active { transform: scale(0.98); }
+
+.map-layer-badge {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 11px;
+  background: var(--fire-grad, linear-gradient(135deg, #D9530A, #A92312));
+  box-shadow: 0 4px 10px rgba(194, 58, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.map-layer-icon { width: 19px; height: 19px; stroke: #fff; stroke-width: 1.8; }
+/* A small dot on the badge when an overlay is switched on */
+.map-layer-menu.has-overlay .map-layer-badge::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #2FBF71;
+  border: 2px solid #fff;
+}
+
+.map-layer-trigger-copy { gap: 1px; }
+.map-layer-trigger-copy strong {
+  font: 700 0.84rem/1.15 var(--font-display, system-ui);
+  letter-spacing: -0.005em;
+  color: var(--ink, #1F1510);
+}
+.map-layer-trigger-copy small {
+  font-size: 0.7rem;
+  line-height: 1.2;
+  color: var(--ink-soft, #5F5046);
+}
+.map-layer-menu.has-overlay .map-layer-trigger-copy small { color: var(--orange-text, #A33C00); font-weight: 600; }
+.map-layer-chevron { color: var(--ink-soft, #5F5046); }
+
+.map-layer-panel {
+  top: calc(100% + 8px);
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  max-height: min(420px, calc(100dvh - 96px));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px;
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.6));
+  border-radius: 18px;
+  background: var(--glass-strong, rgba(255, 250, 245, 0.92));
+  box-shadow: var(--shadow-lift, 0 16px 40px rgba(120, 40, 5, 0.26)), var(--glass-edge, none);
+  -webkit-backdrop-filter: var(--blur, blur(18px));
+  backdrop-filter: var(--blur, blur(18px));
+  display: grid;
+  gap: 4px;
+  transform-origin: top left;
+  animation: layer-pop 160ms cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.map-layer-panel[hidden] { display: none; }
+@keyframes layer-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.map-layer-panel-heading { padding: 6px 10px 8px; gap: 1px; }
+.map-layer-panel-heading strong {
+  font: 700 0.72rem/1.2 var(--font-display, system-ui);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-soft, #5F5046);
+}
+.map-layer-panel-heading span { font-size: 0.72rem; color: var(--ink-soft, #5F5046); }
+
+.map-layer-option {
+  min-height: 56px;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.5);
+}
+.map-layer-option:hover { background: rgba(255, 255, 255, 0.92); }
+.map-layer-option.is-active {
+  background: rgba(255, 225, 190, 0.7);
+  border-color: var(--orange, #E4600A);
+}
+.map-layer-option:has(input:focus-visible) {
+  outline: 3px solid var(--focus, #123B9C);
+  outline-offset: 2px;
+}
+.map-layer-option-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  background: rgba(228, 96, 10, 0.12);
+  color: var(--orange-text, #A33C00);
+  transition: background 140ms ease, color 140ms ease;
+}
+.map-layer-glyph { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.map-layer-option.is-active .map-layer-option-icon { background: var(--fire-grad, #C23A0B); color: #fff; }
+
+.map-layer-option-copy { min-width: 0; }
+.map-layer-option-copy strong {
+  font: 700 0.86rem/1.2 var(--font-display, system-ui);
+  color: var(--ink, #1F1510);
+}
+.map-layer-option-copy small { font-size: 0.72rem; line-height: 1.3; color: var(--ink-soft, #5F5046); }
+
+/* Radio dial replaces the old switch */
+.map-layer-check {
+  flex: none;
+  position: relative;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(95, 80, 70, 0.5);
+  background: #fff;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.map-layer-check::after {
+  content: '';
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg) scale(0);
+  transition: transform 140ms ease;
+}
+.map-layer-option.is-active .map-layer-check { background: var(--orange, #E4600A); border-color: var(--orange, #E4600A); }
+.map-layer-option.is-active .map-layer-check::after { transform: rotate(45deg) scale(1); }
+
+/* Keep the legend controls clear of the trigger and let them fit narrow stages */
+.el-nino-legend-toggle { left: 16px; top: 74px; }
+.el-nino-legend { left: 16px; top: 112px; max-height: calc(100% - 200px); overflow-y: auto; }
+
+@media (max-width: 900px) {
+  .map-layer-menu { left: 12px; top: 12px; max-width: calc(100% - 24px); }
+  .map-layer-trigger { min-height: 44px; max-width: min(220px, 100%); }
+  .map-layer-panel { width: 300px; max-width: calc(100vw - 24px); }
+  .el-nino-legend-toggle { left: 12px; top: 68px; }
+  .el-nino-legend { left: 12px; top: 106px; }
+}
+/* Very narrow phones: icon plus chevron only */
+@media (max-width: 380px) {
+  .map-layer-trigger-copy { display: none; }
+  .map-layer-trigger { padding-right: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-layer-panel { animation: none; }
+  .map-layer-chevron, .map-layer-check::after { transition: none; }
+}
+
+/* =========================================================
+   Usability + responsive layer (phones, tablets, touch)
+   ========================================================= */
+
+/* ---------- Map controls ---------- */
+/* Sit below the account and bell buttons in the top-right corner */
+.leaflet-top.leaflet-right { margin-top: 68px; }
+.leaflet-right .leaflet-control { margin-right: 14px; }
+.leaflet-bar a { display: grid; place-items: center; text-decoration: none; font-weight: 700; }
+.fx-locate a svg {
+  width: 20px; height: 20px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; color: #1677D2;
+}
+
+/* ---------- Never let floating UI overflow the screen ---------- */
+.stage { min-width: 0; }
+.map-hint, .db-flag { max-width: calc(100% - 24px); text-align: center; box-sizing: border-box; }
+.toast, .bell-dropdown { max-width: calc(100vw - 24px); box-sizing: border-box; }
+.bell-dropdown { max-height: min(70dvh, 520px); overflow-y: auto; overscroll-behavior: contain; }
+.leaflet-popup { max-width: calc(100vw - 24px); }
+.weather-risk-popup { max-width: min(320px, calc(100vw - 56px)); }
+.evacuation-modal, .admin-panel, .evidence-modal, .sound-modal {
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-sizing: border-box;
+}
+.evacuation-modal { width: min(480px, calc(100vw - 24px)); }
+
+/* ---------- Touch devices: bigger targets, no hover-only effects ---------- */
+@media (pointer: coarse) {
+  .leaflet-bar a { width: 44px; height: 44px; line-height: 44px; font-size: 1.3rem; }
+  .map-layer-trigger { min-height: 50px; }
+  .map-layer-option { min-height: 62px; }
+  .secondary, .icon-button, .chip-toggle, .admin-chip-button { min-height: 44px; }
+  .primary { min-height: 52px; }
+  .haze-speed select { min-height: 40px; min-width: 64px; }
+  .haze-region { min-height: 56px; }
+  .bell, .admin-button, .rail-handle { min-width: 44px; min-height: 44px; }
+  .timeline input[type='range'] { min-height: 32px; }
+  /* 16px stops iOS from zooming the page when a field is focused */
+  textarea, select, input, .incident-search { font-size: 16px; }
+}
+@media (hover: none) {
+  .fx-pin:hover .fx-body, .fx-bfp:hover, .fx-temp:hover { transform: none; }
+  .report-btn:hover, .sidebar .report-btn:hover { transform: none; }
+  /* Hover tooltips never fire on touch, so keep them from sticking after a tap */
+  .leaflet-tooltip { pointer-events: none; }
+}
+
+/* ---------- Tablets (portrait and landscape) ---------- */
+@media (min-width: 601px) and (max-width: 1100px) {
+  .map-layer-menu { left: 14px; top: 14px; }
+  .el-nino-legend { width: min(360px, calc(100% - 28px)); }
+  .timeline.haze-timeline { width: min(640px, calc(100% - 32px)); }
+  .haze-stats { gap: 10px; }
+  .weather-risk-popup { max-width: 340px; }
+}
+
+/* ---------- Phones ---------- */
+@media (max-width: 900px) {
+  /* Respect notches and the home-indicator bar */
+  .map-layer-menu {
+    top: max(12px, env(safe-area-inset-top));
+    left: max(12px, env(safe-area-inset-left));
+  }
+  .leaflet-top.leaflet-right { margin-top: calc(max(0px, env(safe-area-inset-top)) + 62px); }
+  .leaflet-right .leaflet-control { margin-right: max(12px, env(safe-area-inset-right)); }
+  .rail { padding-bottom: env(safe-area-inset-bottom); }
+  .leaflet-control-attribution { font-size: 0.62rem; max-width: 60vw; }
+
+  .haze-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .haze-stats div { padding: 8px 8px; }
+  .haze-stats b { font-size: 1.05rem; }
+  .haze-spark { width: 56px; }
+  .haze-region-text strong { font-size: 0.9rem; }
+
+  .el-nino-legend { max-height: 34dvh; overflow-y: auto; }
+  .map-hint { top: max(68px, calc(env(safe-area-inset-top) + 60px)); }
+}
+
+@media (max-width: 520px) {
+  /* Timeline: slider gets its own full-width row so it is easy to drag */
+  .timeline.haze-timeline { flex-wrap: wrap; row-gap: 6px; }
+  .timeline.haze-timeline .timeline-track { flex: 1 1 100%; order: 3; min-width: 0; }
+  .haze-readout { min-width: 0; margin-left: auto; }
+  .stat-pill { font-size: 0.72rem; }
+  .sidebar .brand h1 { font-size: 1.45rem; }
+  .evacuation-modal h2 { font-size: 1.6rem; }
+  .fx-temp { font-size: 11px; }
+}
+
+/* Short landscape phones: keep the dropdown and legends inside the screen */
+@media (max-height: 520px) {
+  .map-layer-panel { max-height: calc(100dvh - 80px); }
+  .el-nino-legend { max-height: calc(100dvh - 150px); }
+  .evacuation-modal { padding-top: 12px; padding-bottom: 12px; }
+}

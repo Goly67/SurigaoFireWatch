@@ -274,47 +274,112 @@ export function HazeLayer({ data, frame, focus }) {
 
 /* --------------------------------------------------------- floating bits */
 
-/** A single on/off layer switch — local fires stay on the map either way. */
-export function HazeToggle({ on, onChange }) {
+const LAYER_ICONS = {
+  none: 'M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20zM9 4v13.5M15 6.5V20',
+  haze: 'M7.5 18a4.5 4.5 0 0 1-.6-8.96A5.5 5.5 0 0 1 17.6 9.6 4.2 4.2 0 0 1 17 18z',
+  elnino: 'M3 8.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 14c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 19.5c2-2 4-2 6 0s4 2 6 0 4-2 6 0M12 3v2',
+};
+
+function LayerIcon({ id }) {
   return (
-    <label className="toggle haze-toggle" title="Overlay Indonesia's fire and smoke forecast on the map">
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span className="toggle-track"><span className="toggle-knob" /></span>
-      <span className="haze-toggle-label">Indonesia haze</span>
-    </label>
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="map-layer-glyph">
+      <path d={LAYER_ICONS[id]} />
+    </svg>
   );
 }
 
-export function NationalFireToggle({ on, onChange, loading = false, hotspots = [], fetchedAt = null, clockTick = 0 }) {
-  void clockTick;
-  const formatAge = (minutes) => {
-    if (minutes < 60) return `${minutes} min ago`;
-    const hours = Math.round(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
-    const days = Math.round(hours / 24);
-    return `${days} day${days === 1 ? '' : 's'} ago`;
+/** One responsive menu for the two optional map overlays. */
+export function MapLayerDropdown({ hazeOn, onHazeChange, elNinoOn, onElNinoChange }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
+  const current = elNinoOn ? 'elnino' : hazeOn ? 'haze' : 'none';
+
+  const options = [
+    { id: 'none', title: 'Standard map', desc: 'Fires, stations and live weather' },
+    { id: 'haze', title: 'Indonesia haze', desc: 'Smoke and air-quality outlook' },
+    { id: 'elnino', title: 'El Niño Watch', desc: 'Sea-surface temperature anomaly' },
+  ];
+  const activeLabel = options.find((o) => o.id === current).title;
+
+  const choose = (id) => {
+    if (id === 'none') {
+      if (hazeOn) onHazeChange(false);
+      if (elNinoOn) onElNinoChange(false);
+    } else if (id === 'haze') {
+      onHazeChange(true);
+    } else {
+      onElNinoChange(true);
+    }
+    setOpen(false);
   };
-  const newestDetectionHours = hotspots.reduce((newest, hotspot) => (
-    Number.isFinite(hotspot.hoursOld) ? Math.min(newest, hotspot.hoursOld) : newest
-  ), Infinity);
-  const newestDetectionAge = Number.isFinite(newestDetectionHours)
-    ? Math.max(1, Math.round(newestDetectionHours * 60))
-    : null;
-  const fetchAge = fetchedAt ? Math.max(1, Math.round((Date.now() - fetchedAt) / 60000)) : null;
-  const status = loading
-    ? 'Refreshing PH fires'
-    : newestDetectionAge != null
-      ? `PH fires · ${hotspots.length} live · newest ${formatAge(newestDetectionAge)}`
-      : fetchAge != null
-        ? `PH fires · ${hotspots.length} live · checked ${fetchAge} min ago`
-        : 'PH satellite fires';
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const closeOnOutsideClick = (event) => {
+      if (!menuRef.current?.contains(event.target)) setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
 
   return (
-    <label className="toggle national-fire-toggle" title="Show recent satellite fire detections across the Philippines. The age shown here is for the newest hotspot anywhere in the country.">
-      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)} />
-      <span className="toggle-track"><span className="toggle-knob" /></span>
-      <span className="haze-toggle-label">{status}</span>
-    </label>
+    <div className={`map-layer-menu ${current !== 'none' ? 'has-overlay' : ''}`} ref={menuRef}>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="map-layer-trigger"
+        aria-expanded={open}
+        aria-controls="map-layer-panel"
+        aria-label={`Map layers, ${activeLabel}`}
+        onClick={() => setOpen((isOpen) => !isOpen)}
+      >
+        <span className="map-layer-badge">
+          <svg className="map-layer-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5" />
+          </svg>
+        </span>
+        <span className="map-layer-trigger-copy">
+          <strong>Map layers</strong>
+          <small>{activeLabel}</small>
+        </span>
+        <svg className={`map-layer-chevron ${open ? 'is-open' : ''}`} viewBox="0 0 16 16" aria-hidden="true">
+          <path d="m4 6 4 4 4-4" />
+        </svg>
+      </button>
+      <div className="map-layer-panel" id="map-layer-panel" role="radiogroup" aria-label="Map overlay" hidden={!open}>
+        <div className="map-layer-panel-heading">
+          <strong>Map overlays</strong>
+          <span>One view at a time</span>
+        </div>
+        {options.map((option) => (
+          <label key={option.id} className={`map-layer-option ${current === option.id ? 'is-active' : ''}`}>
+            <input
+              type="radio"
+              name="map-layer"
+              value={option.id}
+              checked={current === option.id}
+              onChange={() => choose(option.id)}
+            />
+            <span className="map-layer-option-icon"><LayerIcon id={option.id} /></span>
+            <span className="map-layer-option-copy">
+              <strong>{option.title}</strong>
+              <small>{option.desc}</small>
+            </span>
+            <span className="map-layer-check" aria-hidden="true" />
+          </label>
+        ))}
+      </div>
+    </div>
   );
 }
 
